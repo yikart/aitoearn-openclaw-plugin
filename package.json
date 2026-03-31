@@ -12,6 +12,10 @@
       "pluginApi": ">=2026.3.24-beta.2"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yikart/aitoearn-openclaw-plugin"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
