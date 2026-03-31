@@ -1,0 +1,1471 @@
+[
+  {
+    "name": "getAccountGroupList",
+    "description": "Get all account groups for the authenticated user. Returns a list of account groups with their IDs, names, and metadata.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "getAccountListByGroupId",
+    "description": "Get all accounts belonging to a specific account group. Provide groupId. Returns a list of accounts with their IDs, types, names, and status information.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "groupId"
+      ]
+    }
+  },
+  {
+    "name": "getAllAccounts",
+    "description": "Get all accounts for the authenticated user (ungrouped). Returns platform type, name, ID, group ID, and status for each account.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "getAccountDetail",
+    "description": "Get detailed information of a single account. Provide account ID to get full details including platform type, UID, name, avatar, status, and group.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "Account ID"
+        }
+      },
+      "required": [
+        "accountId"
+      ]
+    }
+  },
+  {
+    "name": "getPublishingTaskStatus",
+    "description": "Get the status of a publishing task for the authenticated user. Provide flowId from a previous publish operation. Returns task status (waiting/processing/published/failed), error details if failed, and published post information when successful.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "flowId": {
+          "type": "string",
+          "description": "flow Id from publish task creation"
+        }
+      },
+      "required": [
+        "flowId"
+      ]
+    }
+  },
+  {
+    "name": "getBilibiliContentCategories",
+    "description": "Get Bilibili content categories. Returns available categories that can be used when publishing to Bilibili.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "getYoutubeContentCategories",
+    "description": "Get YouTube content categories for a specific region. Returns available categories that can be used when publishing to YouTube. regionCode should be a two-letter country code (e.g., US, CN, GB, JP).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "regionCode": {
+          "default": "US",
+          "type": "string",
+          "description": "region code"
+        }
+      }
+    }
+  },
+  {
+    "name": "publishRestrictions",
+    "description": "Get platform-specific publishing restrictions and validation rules for one or more platforms. You must specify at least one platform to get its restrictions. Provide multiple platforms to get restrictions for all of them in one call. Platform values must be one of: douyin, xhs, wxSph, KWAI, youtube, wxGzh, bilibili, twitter, tiktok, facebook, instagram, threads, pinterest, linkedin, google_business.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "platforms": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "douyin",
+              "xhs",
+              "wxSph",
+              "KWAI",
+              "youtube",
+              "wxGzh",
+              "bilibili",
+              "twitter",
+              "tiktok",
+              "facebook",
+              "instagram",
+              "threads",
+              "pinterest",
+              "linkedin",
+              "google_business"
+            ]
+          },
+          "description": "Array of platforms to get restrictions for. Must specify at least one platform."
+        }
+      },
+      "required": [
+        "platforms"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToBilibili",
+    "description": "Publish video content to Bilibili. ONLY video content is supported (image-only or text-only posts are not supported). Option parameters: \n- tid: category id (required) - get from tool getBilibiliContentCategories and recommend based on content\n- no_reprint: 0 (allow reprint) or 1 (disable reprint), default: 0\n- copyright: 1 (original) or 2 (forward), default: 1\n- source: source link (required when copyright is 2)\n\nWorkflow: \n(1) Confirm: title, description, REQUIRED video URL, optional cover URL, topics (at least one), publishing time\n(2) Call getBilibiliContentCategories if category not specified\n(3) Call publishPostToBilibili with all parameters\n(4) Return flowId and status for tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "type": "string",
+          "description": "title"
+        },
+        "desc": {
+          "description": "description",
+          "type": "string"
+        },
+        "videoUrl": {
+          "type": "string",
+          "description": "video url"
+        },
+        "coverUrl": {
+          "type": "string",
+          "description": "cover url"
+        },
+        "topics": {
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "topics (hashtags); 1-10 required"
+        },
+        "option": {
+          "type": "object",
+          "properties": {
+            "tid": {
+              "default": 160,
+              "description": "category id",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "no_reprint": {
+              "default": 0,
+              "description": "disable reprint",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "copyright": {
+              "default": 1,
+              "description": "original or forward",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "source": {
+              "description": "source link",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "accountId",
+        "title",
+        "videoUrl",
+        "coverUrl",
+        "topics"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToWxGzh",
+    "description": "Publish articles to WeChat Official Account (微信公众号). Supports text, images, and videos.\n\nRequired parameters: accountId, title, description/content\nOptional parameters: cover image URL, video/image URLs, publishing time, topics/tags, comment settings\n\nWorkflow:\n(1) Confirm account and gather all required content\n(2) Call publishPostToWxGzh with parameters\n(3) Return flowId for status tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "description": "title",
+          "type": "string"
+        },
+        "desc": {
+          "description": "description",
+          "type": "string"
+        },
+        "videoUrl": {
+          "description": "video url",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "cover url",
+          "type": "string"
+        },
+        "imgUrlList": {
+          "description": "image url list",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "topics": {
+          "default": [],
+          "description": "topics",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "accountId"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToYoutube",
+    "description": "Publish video content to YouTube. ONLY video content is supported (image-only or text-only posts are not supported). Option parameters:\n- privacyStatus: visibility (public/private/unlisted), default: public\n- license: license type, default: youtube\n- categoryId: category id (required) - get from tool getYoutubeContentCategories and recommend based on content\n\nWorkflow:\n(1) Confirm: title, description, REQUIRED video URL, optional cover URL, optional topics, publishing time\n(2) Call getYoutubeContentCategories to determine category\n(3) Call publishPostToYoutube with all parameters\n(4) Return flowId for status tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "title"
+        },
+        "desc": {
+          "type": "string",
+          "maxLength": 5000,
+          "description": "description"
+        },
+        "videoUrl": {
+          "description": "video url",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "cover url",
+          "type": "string"
+        },
+        "topics": {
+          "default": [],
+          "description": "topics",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "option": {
+          "type": "object",
+          "properties": {
+            "privacyStatus": {
+              "type": "string",
+              "enum": [
+                "public",
+                "unlisted",
+                "private"
+              ],
+              "description": "privacy status"
+            },
+            "license": {
+              "type": "string",
+              "enum": [
+                "youtube",
+                "creativeCommon"
+              ],
+              "description": "license"
+            },
+            "categoryId": {
+              "type": "string",
+              "description": "category id"
+            }
+          },
+          "required": [
+            "privacyStatus",
+            "license",
+            "categoryId"
+          ]
+        }
+      },
+      "required": [
+        "accountId",
+        "title",
+        "desc"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToPinterest",
+    "description": "Publish pins to Pinterest. Supports image and video content. Required parameters: title, description, at least one image URL or video URL\nOptional parameters: target link URL\n\nWorkflow:\n(1) Confirm: title, description, media URLs (images or video), optional target link\n(2) Call publishPostToPinterest with parameters\n(3) Return flowId for status tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "type": "string",
+          "description": "title"
+        },
+        "desc": {
+          "description": "description",
+          "type": "string"
+        },
+        "videoUrl": {
+          "description": "video url",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "cover url",
+          "type": "string"
+        },
+        "imgUrlList": {
+          "description": "image url list; 1 allowed",
+          "minItems": 1,
+          "maxItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "topics": {
+          "default": [],
+          "description": "topics",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "accountId",
+        "title"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToThreads",
+    "description": "Publish posts to Threads. Supports image and video content. Required parameters: title, description, at least one image URL or video URL\nOption parameters:\n- locationId: get from resource mcp://threads/locations, default is first location\n\nWorkflow:\n(1) Confirm: title, description, media URLs (images or video)\n(2) Call publishPostToThreads with parameters\n(3) Return flowId for status tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "title"
+        },
+        "desc": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "description"
+        },
+        "videoUrl": {
+          "description": "video url",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "cover url",
+          "type": "string"
+        },
+        "imgUrlList": {
+          "description": "image url list; 1-10 allowed",
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "topics": {
+          "default": [],
+          "description": "topics",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "accountId",
+        "title",
+        "desc"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToTiktok",
+    "description": "Publish short-form videos to TikTok. ONLY video content is supported. Required parameters: video URL, title, description\nOptional parameters: cover URL, topics/hashtags, privacy level, comment/duet/stitch settings\n\nWorkflow:\n(1) Confirm: video URL, title, description, optional cover and settings\n(2) Call publishPostToTiktok with parameters\n(3) Return flowId for status tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "description": "title",
+          "type": "string",
+          "maxLength": 200
+        },
+        "desc": {
+          "description": "description",
+          "type": "string",
+          "maxLength": 2200
+        },
+        "videoUrl": {
+          "description": "video url",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "cover url",
+          "type": "string"
+        },
+        "imgUrlList": {
+          "description": "image url list; 1-10 allowed",
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "topics": {
+          "default": [],
+          "description": "topics; max 5",
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "accountId"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToFacebook",
+    "description": "Publish posts, reels, or stories to Facebook. Supports text, image, and video content. Required parameters: content text, content_category (post/reel/story)\nOptional parameters: image or video URLs (reels and stories should include media), topics/hashtags\n\nWorkflow:\n(1) Confirm: text content, content category, optional media URLs and topics\n(2) Call publishPostToFacebook with parameters\n(3) Return flowId for status tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "type": "string",
+          "description": "title"
+        },
+        "desc": {
+          "type": "string",
+          "maxLength": 5000,
+          "description": "description"
+        },
+        "videoUrl": {
+          "description": "video url",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "cover url",
+          "type": "string"
+        },
+        "imgUrlList": {
+          "description": "image url list; 1-10 allowed",
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "topics": {
+          "default": [],
+          "description": "topics",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "accountId",
+        "title",
+        "desc"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToInstagram",
+    "description": "Publish posts, reels, or stories to Instagram. Supports image and video content. Required parameters: content text, content_category (post/reel/story), media URLs\nOptional parameters: topics/hashtags\n\nWorkflow:\n(1) Confirm: text content, content category, media URLs (reels and stories require media), optional topics\n(2) Call publishPostToInstagram with parameters\n(3) Return flowId for status tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 2200,
+          "description": "title"
+        },
+        "desc": {
+          "type": "string",
+          "maxLength": 5000,
+          "description": "description"
+        },
+        "videoUrl": {
+          "description": "video url",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "cover url",
+          "type": "string"
+        },
+        "imgUrlList": {
+          "description": "image url list; 1-10 allowed",
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "topics": {
+          "default": [],
+          "description": "topics",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "accountId",
+        "title",
+        "desc"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToKwai",
+    "description": "Publish short videos to Kwai. ONLY video content is supported. Required parameters: video URL, title/caption, coverUrl (MANDATORY)\nOptional parameters: topics/hashtags, publishing time\n\nIMPORTANT: Cover image is MANDATORY for Kwai. If not provided, automatically generate one using media_generation tool based on title and description.\n\nWorkflow:\n(1) Confirm: video URL, title/caption, topics, publishing time\n(2) Ensure cover image exists (generate if needed)\n(3) Call publishPostToKwai with all parameters\n(4) Return flowId for status tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "description": "title",
+          "type": "string"
+        },
+        "desc": {
+          "description": "description",
+          "type": "string"
+        },
+        "videoUrl": {
+          "description": "video url",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "cover url",
+          "type": "string"
+        },
+        "topics": {
+          "default": [],
+          "description": "topics; max 4",
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "accountId"
+      ]
+    }
+  },
+  {
+    "name": "publishPostToTwitter",
+    "description": "Publish tweets to Twitter. Supports text, image, and video content. Required parameters: tweet text (respect character limits)\nOptional parameters: image or video URLs, topics/hashtags\n\nWorkflow:\n(1) Confirm: tweet text, optional media URLs and hashtags\n(2) Call publishPostToTwitter with parameters\n(3) Return flowId for status tracking",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "account id"
+        },
+        "userTaskId": {
+          "description": "user task id",
+          "type": "string"
+        },
+        "publishTime": {
+          "description": "publish time",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "title": {
+          "description": "title",
+          "type": "string",
+          "maxLength": 280
+        },
+        "desc": {
+          "description": "description",
+          "type": "string",
+          "maxLength": 280
+        },
+        "videoUrl": {
+          "description": "video url",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "cover url",
+          "type": "string"
+        },
+        "imgUrlList": {
+          "description": "image url list; 1-4 allowed",
+          "minItems": 1,
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "topics": {
+          "default": [],
+          "description": "topics",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "accountId"
+      ]
+    }
+  },
+  {
+    "name": "getMediaGroupInfoByName",
+    "description": "Get the authenticated user's media group by title. Returns matching group details, or default group if not found.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Group title"
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  {
+    "name": "createMedia",
+    "description": "Create a new media resource for the authenticated user. Provide group ID, type, media URL, and optional thumbnail, title, and description.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string",
+          "description": "Media group ID"
+        },
+        "draftId": {
+          "description": "Draft ID",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "video",
+            "img"
+          ],
+          "description": "Media type"
+        },
+        "url": {
+          "type": "string",
+          "description": "Media URL"
+        },
+        "thumbUrl": {
+          "description": "Media thumbnail URL",
+          "type": "string"
+        },
+        "title": {
+          "description": "Media title",
+          "type": "string"
+        },
+        "desc": {
+          "description": "Media description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "groupId",
+        "type",
+        "url"
+      ]
+    }
+  },
+  {
+    "name": "getDraftGroupInfoByName",
+    "description": "Get the authenticated user's draft group by title. Returns matching group details, or default group if not found.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Group title"
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  {
+    "name": "createDraft",
+    "description": "Create a new draft for the authenticated user. Provide group ID, title, description, cover URL, media list, type, and options.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string",
+          "description": "Group ID"
+        },
+        "coverUrl": {
+          "description": "Cover URL",
+          "type": "string"
+        },
+        "mediaList": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "Media ID",
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "video",
+                  "img"
+                ],
+                "description": "Media type"
+              },
+              "thumbUrl": {
+                "description": "Media thumbnail URL",
+                "type": "string"
+              },
+              "content": {
+                "description": "Media content",
+                "type": "string"
+              },
+              "mediaId": {
+                "description": "Media ID",
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "type"
+            ]
+          },
+          "description": "Media list"
+        },
+        "title": {
+          "type": "string",
+          "description": "Draft title"
+        },
+        "desc": {
+          "description": "Draft description",
+          "type": "string"
+        },
+        "topics": {
+          "default": [],
+          "description": "Draft topics",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "option": {
+          "description": "Draft options"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "video",
+            "article"
+          ],
+          "description": "Draft type"
+        }
+      },
+      "required": [
+        "groupId",
+        "mediaList",
+        "title",
+        "type"
+      ]
+    }
+  },
+  {
+    "name": "listDrafts",
+    "description": "List the authenticated user's drafts with pagination. Supports filtering by group ID and title.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "pageNo": {
+          "default": 1,
+          "description": "Page number",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "pageSize": {
+          "default": 20,
+          "description": "Page size",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "groupId": {
+          "description": "Draft group ID",
+          "type": "string"
+        },
+        "title": {
+          "description": "Search by title",
+          "type": "string"
+        }
+      }
+    }
+  },
+  {
+    "name": "getDraftDetail",
+    "description": "Get detailed information of a single draft, including title, description, topics, and media list.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "draftId": {
+          "type": "string",
+          "description": "Draft ID"
+        }
+      },
+      "required": [
+        "draftId"
+      ]
+    }
+  },
+  {
+    "name": "deleteDraft",
+    "description": "Delete a single draft for the authenticated user.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "draftId": {
+          "type": "string",
+          "description": "Draft ID"
+        }
+      },
+      "required": [
+        "draftId"
+      ]
+    }
+  },
+  {
+    "name": "listMedia",
+    "description": "List the authenticated user's media resources with pagination. Supports filtering by group ID.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "pageNo": {
+          "default": 1,
+          "description": "Page number",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "pageSize": {
+          "default": 20,
+          "description": "Page size",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "groupId": {
+          "description": "Media group ID",
+          "type": "string"
+        }
+      }
+    }
+  },
+  {
+    "name": "listDraftGroups",
+    "description": "List all draft groups for the authenticated user.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "pageNo": {
+          "default": 1,
+          "description": "Page number",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "pageSize": {
+          "default": 100,
+          "description": "Page size",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    }
+  },
+  {
+    "name": "listMediaGroups",
+    "description": "List all media groups for the authenticated user.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "pageNo": {
+          "default": 1,
+          "description": "Page number",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "pageSize": {
+          "default": 100,
+          "description": "Page size",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    }
+  },
+  {
+    "name": "createCrawlTask",
+    "description": "Download video/images and extract metadata (title, description, tags) from social media links. Supported platforms and URL patterns:\n- Bilibili: bilibili.com/video/BV..., b23.tv/...\n- YouTube: youtube.com/watch?v=..., youtu.be/...\n- TikTok: tiktok.com/@user/video/..., vm.tiktok.com/...\n- Douyin: douyin.com/video/..., v.douyin.com/...\n- Xiaohongshu: xiaohongshu.com/explore/..., xhslink.com/...\n- Kuaishou: kuaishou.com/short-video/..., v.kuaishou.com/...\nUse when user provides a social media URL to download video/images, or get video title/description. Returns task ID. Poll getCrawlTaskStatus every 30s for completion.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "link": {
+          "type": "string",
+          "description": "post link"
+        },
+        "draft": {
+          "default": 0,
+          "description": "Draft status, 0 for published, 1 for draft",
+          "type": "number"
+        }
+      },
+      "required": [
+        "link"
+      ]
+    }
+  },
+  {
+    "name": "getCrawlTaskStatus",
+    "description": "Get the status of a crawling task by taskId for the authenticated user. Returns task status (pending/running/success/failed) and extracted post details including title, tags, description, and media URLs when completed. Use sub-agent with wait tool to poll status (recommended: 30 seconds between checks).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "description": "Task ID"
+        }
+      },
+      "required": [
+        "taskId"
+      ]
+    }
+  },
+  {
+    "name": "getMyProfile",
+    "description": "Get the authenticated user's profile, including name and avatar.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "getMyCreditsBalance",
+    "description": "Get the authenticated user's credits balance.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "getMyBalance",
+    "description": "Get the authenticated user's balance, including available balance, total income, total withdrawn, and frozen balance.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "listChannelPosts",
+    "description": "List posts for a specific platform and account. Provide platform type and platform user UID. Returns post titles, publish times, and engagement data.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "enum": [
+            "douyin",
+            "xhs",
+            "wxSph",
+            "KWAI",
+            "youtube",
+            "wxGzh",
+            "bilibili",
+            "twitter",
+            "tiktok",
+            "facebook",
+            "instagram",
+            "threads",
+            "pinterest",
+            "linkedin",
+            "google_business"
+          ],
+          "description": "Platform type, e.g. tiktok, youtube, xhs"
+        },
+        "uid": {
+          "type": "string",
+          "description": "Platform user UID (uid field in the account table)"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "pageSize": {
+          "default": 20,
+          "description": "Page size",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "platform",
+        "uid"
+      ]
+    }
+  },
+  {
+    "name": "getPostDetail",
+    "description": "Get detailed information of a single post, including title, description, engagement data, and media info.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "enum": [
+            "douyin",
+            "xhs",
+            "wxSph",
+            "KWAI",
+            "youtube",
+            "wxGzh",
+            "bilibili",
+            "twitter",
+            "tiktok",
+            "facebook",
+            "instagram",
+            "threads",
+            "pinterest",
+            "linkedin",
+            "google_business"
+          ],
+          "description": "Platform type"
+        },
+        "postId": {
+          "type": "string",
+          "description": "Post ID"
+        }
+      },
+      "required": [
+        "platform",
+        "postId"
+      ]
+    }
+  },
+  {
+    "name": "createVideoDraft",
+    "description": "Generate video content drafts using AI. Use getDraftGenerationPricing first to get available models. Returns task IDs, use getDraftTaskStatus to check progress.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "quantity": {
+          "default": 1,
+          "description": "Number of drafts to generate",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "groupId": {
+          "description": "Draft group ID, uses default group if empty",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Custom prompt for generation",
+          "type": "string",
+          "maxLength": 2000
+        },
+        "imageUrls": {
+          "description": "Image URLs as video first-frame source",
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "model": {
+          "type": "string",
+          "description": "Video generation model name, e.g. grok-imagine-video"
+        },
+        "duration": {
+          "description": "Video duration in seconds",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 15
+        },
+        "aspectRatio": {
+          "description": "Video aspect ratio: 1:1/16:9/9:16/4:3/3:4/3:2/2:3",
+          "type": "string"
+        },
+        "videoUrls": {
+          "description": "Motion reference video URLs",
+          "maxItems": 3,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "draftType": {
+          "default": "draft",
+          "description": "Draft type: draft (full draft with title/desc/topics), video (video only)",
+          "type": "string",
+          "enum": [
+            "draft",
+            "video"
+          ]
+        },
+        "platforms": {
+          "description": "Target platforms, e.g. tiktok, youtube",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "douyin",
+              "xhs",
+              "wxSph",
+              "KWAI",
+              "youtube",
+              "wxGzh",
+              "bilibili",
+              "twitter",
+              "tiktok",
+              "facebook",
+              "instagram",
+              "threads",
+              "pinterest",
+              "linkedin",
+              "google_business"
+            ]
+          }
+        }
+      },
+      "required": [
+        "model"
+      ]
+    }
+  },
+  {
+    "name": "createImageTextDraft",
+    "description": "Generate image-text content drafts using AI. Use getDraftGenerationPricing first to get available image models. Returns task IDs, use getDraftTaskStatus to check progress.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "quantity": {
+          "default": 1,
+          "description": "Number of drafts to generate",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "groupId": {
+          "description": "Draft group ID, uses default group if empty",
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Custom prompt for generation"
+        },
+        "imageUrls": {
+          "description": "Reference image URLs",
+          "maxItems": 14,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "imageModel": {
+          "type": "string",
+          "description": "Image generation model name"
+        },
+        "imageCount": {
+          "default": 3,
+          "description": "Number of images to generate",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "imageSize": {
+          "description": "Image resolution: 1K, 2K, or 4K",
+          "type": "string"
+        },
+        "aspectRatio": {
+          "description": "Image aspect ratio: 1:1/2:3/3:2/3:4/4:3/4:5/5:4/9:16/16:9",
+          "type": "string"
+        },
+        "draftType": {
+          "default": "draft",
+          "description": "Draft type: draft (full draft with title/desc/topics), image (image only)",
+          "type": "string",
+          "enum": [
+            "draft",
+            "image"
+          ]
+        },
+        "platforms": {
+          "description": "Target platforms",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "douyin",
+              "xhs",
+              "wxSph",
+              "KWAI",
+              "youtube",
+              "wxGzh",
+              "bilibili",
+              "twitter",
+              "tiktok",
+              "facebook",
+              "instagram",
+              "threads",
+              "pinterest",
+              "linkedin",
+              "google_business"
+            ]
+          }
+        }
+      },
+      "required": [
+        "prompt",
+        "imageModel"
+      ]
+    }
+  },
+  {
+    "name": "getDraftTaskStatus",
+    "description": "Get the status and result of a draft generation task. Status: generating, success, or failed. Returns generated content details on success.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "description": "Draft generation task ID"
+        }
+      },
+      "required": [
+        "taskId"
+      ]
+    }
+  },
+  {
+    "name": "getDraftGenerationPricing",
+    "description": "Get AI draft generation model pricing, including available video and image generation models with their supported parameters and prices.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    }
+  }
+]
