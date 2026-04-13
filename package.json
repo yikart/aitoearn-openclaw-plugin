@@ -4,6 +4,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": "./dist/src/cli.js",
   "openclaw": {
     "extensions": [
       "./dist/index.js"

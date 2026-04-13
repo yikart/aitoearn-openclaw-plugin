@@ -1,60 +1,77 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
+import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
 import * as p from "@clack/prompts";
 import { getMcpClient } from "./src/mcp-client.js";
-import { toolDefinitions } from "./src/tools.js";
-
-const configSchema = z.object({
-  apiKey: z.string().optional(),
-  baseUrl: z.string().default("https://aitoearn.ai/api"),
-});
-
-type PluginConfig = z.infer<typeof configSchema>;
+import {
+  buildPluginEntryConfig,
+  configSchema,
+  normalizeBaseUrl,
+  PLUGIN_ID,
+  PLUGIN_NAME,
+  type PluginConfig,
+} from "./src/plugin-config.js";
+import { runInteractiveSetupFlow } from "./src/setup-flow.js";
+import {
+  applySyncToolDiscoveryLogs,
+  loadToolDefinitionsSync,
+} from "./src/tool-discovery.js";
 
 export default definePluginEntry({
-  id: "aitoearn",
-  name: "AiToEarn",
+  id: PLUGIN_ID,
+  name: PLUGIN_NAME,
   description: "AiToEarn social media management tools",
   configSchema,
 
   register(api) {
-    // 注册 CLI 命令
     api.registerCli(
       ({ program }) => {
         program
-          .command("aitoearn")
+          .command(PLUGIN_ID)
           .description("AiToEarn plugin management")
           .command("setup")
-          .description("Configure AiToEarn plugin with your API key")
-          .action(() => runSetup(api));
+          .description("Configure AiToEarn plugin with your API key (deprecated)")
+          .action(async () => runSetup(api));
       },
       {
         descriptors: [
-          { name: "aitoearn", description: "AiToEarn plugin", hasSubcommands: true },
+          { name: PLUGIN_ID, description: "AiToEarn plugin", hasSubcommands: true },
         ],
       }
     );
 
-    const config = api.pluginConfig as PluginConfig;
+    const parsed = configSchema.safeParse(api.pluginConfig ?? {});
+    const pluginConfig = (parsed.success ? parsed.data : {}) as PluginConfig;
+    const discoveryResult = loadToolDefinitionsSync({
+      config: api.config,
+      pluginConfig,
+      stateDir: api.runtime.state.resolveStateDir(),
+    });
 
-    if (!config.apiKey) {
-      return;
-    }
+    applySyncToolDiscoveryLogs(api.logger, discoveryResult.logs);
 
-    const baseUrl = config.baseUrl || "https://aitoearn.ai/api";
-    const apiKey = config.apiKey;
-
-    // 同步注册所有工具（硬编码定义）
-    for (const tool of toolDefinitions) {
+    for (const tool of discoveryResult.tools) {
       api.registerTool({
         name: tool.name,
         label: tool.name,
         description: tool.description,
         parameters: tool.inputSchema,
         async execute(_toolCallId, params) {
-          const client = await getMcpClient(apiKey, baseUrl);
+          const config = await resolvePluginConfig(api);
+          if (!config) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "AiToEarn plugin is not configured. Re-run setup and restart the gateway.",
+                },
+              ],
+              details: null,
+            };
+          }
+
+          const client = await getMcpClient(config.apiKey, config.baseUrl);
           const result = (await client.callTool({
             name: tool.name,
             arguments: params as Record<string, unknown>,
@@ -76,102 +93,58 @@ export default definePluginEntry({
 });
 
 async function runSetup(api: OpenClawPluginApi): Promise<void> {
-  p.intro("AiToEarn Plugin Setup");
-
-  const apiKey = await p.text({
-    message: "Enter your API Key:",
-    validate: (value) => {
-      if (!value) return "API Key is required";
-    },
+  const setupResult = await runInteractiveSetupFlow({
+    compatibilityNote:
+      'This command is deprecated. Prefer `npx @aitoearn/openclaw-plugin` for future setup.',
   });
-
-  if (p.isCancel(apiKey)) {
-    p.cancel("Setup cancelled");
-    process.exit(0);
+  if (setupResult.status === "cancelled") {
+    return;
   }
 
-  const environment = await p.select({
-    message: "Select environment:",
-    options: [
-      {
-        value: "prod",
-        label: "Production (aitoearn.ai)",
-        hint: "International",
-      },
-      {
-        value: "prod-cn",
-        label: "Production China (aitoearn.cn)",
-        hint: "China region",
-      },
-      { value: "custom", label: "Custom URL", hint: "Self-hosted" },
-    ],
-  });
-
-  if (p.isCancel(environment)) {
-    p.cancel("Setup cancelled");
-    process.exit(0);
+  if (setupResult.status === "validation_failed") {
+    process.exitCode = 1;
+    return;
   }
 
-  let baseUrl: string;
-  if (environment === "prod-cn") {
-    baseUrl = "https://aitoearn.cn/api";
-  } else if (environment === "custom") {
-    const customUrl = await p.text({
-      message: "Enter custom base URL:",
-      placeholder: "https://your-domain.com/api",
-      validate: (value) => {
-        if (!value) return "Base URL is required";
-      },
-    });
-
-    if (p.isCancel(customUrl)) {
-      p.cancel("Setup cancelled");
-      process.exit(0);
-    }
-
-    baseUrl = customUrl as string;
-  } else {
-    baseUrl = "https://aitoearn.ai/api";
-  }
-
-  const s = p.spinner();
-  s.start("Validating API Key...");
-
-  const validationResult = await validateWithMcpClient(
-    apiKey as string,
-    baseUrl
-  );
-  if (!validationResult.success) {
-    s.stop();
-    p.cancel(`Validation failed: ${validationResult.error}`);
-    process.exit(1);
-  }
-
-  s.stop(`Connected! Found ${validationResult.toolCount} tools.`);
-
-  // 使用 OpenClaw 的配置 API 写入
   const cfg = api.runtime.config.loadConfig();
   cfg.plugins ??= {};
   cfg.plugins.entries ??= {};
-  cfg.plugins.entries.aitoearn = {
-    enabled: true,
-    config: { apiKey, baseUrl },
-  };
+  cfg.plugins.entries[PLUGIN_ID] = buildPluginEntryConfig(setupResult.config);
   await api.runtime.config.writeConfigFile(cfg);
 
   p.outro('Configuration saved! Run "openclaw gateway restart" to apply.');
 }
 
-async function validateWithMcpClient(
-  apiKey: string,
-  baseUrl: string
-): Promise<{ success: true; toolCount: number } | { success: false; error: string }> {
-  try {
-    const client = await getMcpClient(apiKey, baseUrl);
-    const { tools } = await client.listTools();
-    return { success: true, toolCount: tools.length };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { success: false, error: message };
+async function resolvePluginConfig(
+  api: OpenClawPluginApi
+): Promise<{ apiKey: string; baseUrl: string } | null> {
+  const parsed = configSchema.safeParse(api.pluginConfig ?? {});
+  const config = (parsed.success ? parsed.data : {}) as PluginConfig;
+  if (!config.apiKey) {
+    return null;
   }
+
+  const apiKeyResolution = await resolveConfiguredSecretInputString({
+    config: api.config,
+    env: process.env,
+    value: config.apiKey,
+    path: `plugins.entries.${PLUGIN_ID}.config.apiKey`,
+    unresolvedReasonStyle: "detailed",
+  });
+
+  const apiKey = apiKeyResolution.value?.trim();
+  if (!apiKey) {
+    api.logger.warn(
+      `AiToEarn plugin disabled: ${
+        apiKeyResolution.unresolvedRefReason ??
+        `plugins.entries.${PLUGIN_ID}.config.apiKey is not configured.`
+      }`
+    );
+    return null;
+  }
+
+  return {
+    apiKey,
+    baseUrl: normalizeBaseUrl(config.baseUrl),
+  };
 }
