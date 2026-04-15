@@ -34,8 +34,22 @@ vi.mock("./src/tool-discovery.js", () => toolDiscoveryMock);
 
 import pluginEntry from "./index.js";
 
+interface RegisteredTool {
+  name: string;
+  description: string;
+  execute: (...args: unknown[]) => Promise<unknown>;
+}
+
+function createTool(name: string, description = `Tool ${name}`) {
+  return {
+    name,
+    description,
+    inputSchema: { type: "object", properties: {} },
+  };
+}
+
 describe("AiToEarn OpenClaw Plugin", () => {
-  let registeredTools: Array<{ name: string; execute: Function }>;
+  let registeredTools: RegisteredTool[];
   let mockApi: {
     config: Record<string, unknown>;
     pluginConfig: { apiKey?: string | Record<string, unknown>; baseUrl?: string };
@@ -53,6 +67,24 @@ describe("AiToEarn OpenClaw Plugin", () => {
     registerTool: ReturnType<typeof vi.fn>;
   };
 
+  function setDiscoveredTools(toolNames: string[]) {
+    toolDiscoveryMock.loadToolDefinitionsSync.mockReturnValue({
+      source: "remote",
+      tools: toolNames.map((name) => createTool(name)),
+      logs: [],
+    });
+  }
+
+  function getRegisteredTool(name: string): RegisteredTool {
+    const tool = registeredTools.find((candidate) => candidate.name === name);
+    expect(tool).toBeDefined();
+    return tool!;
+  }
+
+  function getRegisteredToolNames(): string[] {
+    return registeredTools.map((tool) => tool.name);
+  }
+
   beforeEach(() => {
     registeredTools = [];
     configRuntimeMock.resolveConfiguredSecretInputString.mockReset();
@@ -61,17 +93,13 @@ describe("AiToEarn OpenClaw Plugin", () => {
     });
     toolDiscoveryMock.applySyncToolDiscoveryLogs.mockReset();
     toolDiscoveryMock.loadToolDefinitionsSync.mockReset();
-    toolDiscoveryMock.loadToolDefinitionsSync.mockReturnValue({
-      source: "remote",
-      tools: [
-        {
-          name: "test_tool",
-          description: "A synced tool",
-          inputSchema: { type: "object", properties: {} },
-        },
-      ],
-      logs: [],
-    });
+    setDiscoveredTools([
+      "test_tool",
+      "publishPostToTiktok",
+      "publishPostToKwai",
+      "publishPostToWxGzh",
+      "publishPostToBilibili",
+    ]);
 
     mockApi = {
       config: {},
@@ -118,7 +146,7 @@ describe("AiToEarn OpenClaw Plugin", () => {
     expect(emptyResult.success).toBe(true);
   });
 
-  it("should register CLI and synced MCP tools on initialization", async () => {
+  it("should register CLI, environment tool, and filtered global publish tools", async () => {
     await pluginEntry.register(mockApi as any);
 
     expect(mockApi.registerCli).toHaveBeenCalled();
@@ -131,8 +159,14 @@ describe("AiToEarn OpenClaw Plugin", () => {
       stateDir: "/tmp/openclaw-state",
     });
     expect(toolDiscoveryMock.applySyncToolDiscoveryLogs).toHaveBeenCalled();
-    expect(mockApi.registerTool).toHaveBeenCalledTimes(1);
-    expect(registeredTools[0].name).toBe("test_tool");
+    expect(getRegisteredToolNames()).toEqual([
+      "getAiToEarnEnvironment",
+      "test_tool",
+      "publishPostToTiktok",
+    ]);
+    expect(getRegisteredTool("publishPostToTiktok").description).toBe(
+      "AiToEarn Global publish tool. Tool publishPostToTiktok"
+    );
   });
 
   it("should use default baseUrl when not provided", async () => {
@@ -148,10 +182,20 @@ describe("AiToEarn OpenClaw Plugin", () => {
       },
       stateDir: "/tmp/openclaw-state",
     });
-    expect(mockApi.registerTool).toHaveBeenCalled();
+
+    const result = (await getRegisteredTool("getAiToEarnEnvironment").execute(
+      "test-call-id",
+      {}
+    )) as {
+      content: Array<{ type: string; text: string }>;
+      details: null;
+    };
+
+    expect(result.content[0].text).toContain("Environment: global");
+    expect(result.content[0].text).toContain("Base URL: https://aitoearn.ai/api");
   });
 
-  it("should resolve SecretRef API keys during tool execution", async () => {
+  it("should resolve SecretRef API keys during synced tool execution", async () => {
     mockApi.pluginConfig.apiKey = {
       source: "env",
       provider: "default",
@@ -160,8 +204,7 @@ describe("AiToEarn OpenClaw Plugin", () => {
 
     await pluginEntry.register(mockApi as any);
 
-    const tool = registeredTools[0];
-    await tool.execute("test-call-id", { input: "test" });
+    await getRegisteredTool("test_tool").execute("test-call-id", { input: "test" });
 
     expect(configRuntimeMock.resolveConfiguredSecretInputString).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -178,8 +221,9 @@ describe("AiToEarn OpenClaw Plugin", () => {
 
     await pluginEntry.register(mockApi as any);
 
-    const tool = registeredTools[0];
-    const result = await tool.execute("test-call-id", { input: "test" });
+    const result = await getRegisteredTool("test_tool").execute("test-call-id", {
+      input: "test",
+    });
 
     expect(result).toEqual({
       content: [
@@ -195,11 +239,138 @@ describe("AiToEarn OpenClaw Plugin", () => {
   it("should execute synced tool and return result", async () => {
     await pluginEntry.register(mockApi as any);
 
-    const tool = registeredTools[0];
-    const result = await tool.execute("test-call-id", { input: "test" });
+    const result = await getRegisteredTool("test_tool").execute("test-call-id", {
+      input: "test",
+    });
 
     expect(result).toEqual({
       content: [{ type: "text", text: "test result" }],
+      details: null,
+    });
+  });
+
+  it("should keep only China publish tools for China environment", async () => {
+    setDiscoveredTools([
+      "test_tool",
+      "publishPostToDouyin",
+      "publishPostToKwai",
+      "publishPostToBilibili",
+      "publishPostToWxGzh",
+      "publishPostToTiktok",
+      "publishPostToTwitter",
+    ]);
+    mockApi.pluginConfig.baseUrl = "https://aitoearn.cn/api";
+
+    await pluginEntry.register(mockApi as any);
+
+    expect(getRegisteredToolNames()).toEqual([
+      "getAiToEarnEnvironment",
+      "test_tool",
+      "publishPostToDouyin",
+      "publishPostToKwai",
+      "publishPostToBilibili",
+      "publishPostToWxGzh",
+    ]);
+    expect(getRegisteredTool("publishPostToDouyin").description).toBe(
+      "AiToEarn China publish tool. Tool publishPostToDouyin"
+    );
+  });
+
+  it("should keep all discovered publish tools for self-hosted environments", async () => {
+    setDiscoveredTools([
+      "test_tool",
+      "publishPostToKwai",
+      "publishPostToTiktok",
+      "publishPostToWxGzh",
+    ]);
+    mockApi.pluginConfig.baseUrl = "https://example.internal/api";
+
+    await pluginEntry.register(mockApi as any);
+
+    expect(getRegisteredToolNames()).toEqual([
+      "getAiToEarnEnvironment",
+      "test_tool",
+      "publishPostToKwai",
+      "publishPostToTiktok",
+      "publishPostToWxGzh",
+    ]);
+    expect(getRegisteredTool("publishPostToTiktok").description).toBe(
+      "Tool publishPostToTiktok"
+    );
+  });
+
+  it("should report global environment policy and unsupported discovered platforms", async () => {
+    setDiscoveredTools([
+      "test_tool",
+      "publishPostToTiktok",
+      "publishPostToYoutube",
+      "publishPostToKwai",
+      "publishPostToWxGzh",
+      "publishPostToBilibili",
+    ]);
+    mockApi.pluginConfig.baseUrl = "https://dev.aitoearn.ai/api";
+
+    await pluginEntry.register(mockApi as any);
+
+    const result = (await getRegisteredTool("getAiToEarnEnvironment").execute(
+      "test-call-id",
+      {}
+    )) as {
+      content: Array<{ type: string; text: string }>;
+      details: null;
+    };
+
+    expect(result).toEqual({
+      content: [
+        {
+          type: "text",
+          text: [
+            "Environment: global",
+            "Base URL: https://dev.aitoearn.ai/api",
+            "Policy Platforms: tiktok, youtube, twitter, facebook, instagram, threads, pinterest, linkedin",
+            "Registered Publish Platforms: tiktok, youtube",
+            "Policy But Missing Publish Platforms: twitter, facebook, instagram, threads, pinterest, linkedin",
+            "Unsupported Publish Platforms: KWAI, bilibili, wxGzh",
+          ].join("\n"),
+        },
+      ],
+      details: null,
+    });
+  });
+
+  it("should report discovered publish tools as policy for self-hosted environments", async () => {
+    setDiscoveredTools([
+      "test_tool",
+      "publishPostToTiktok",
+      "publishPostToWxGzh",
+      "publishPostToKwai",
+    ]);
+    mockApi.pluginConfig.baseUrl = "https://example.internal/api";
+
+    await pluginEntry.register(mockApi as any);
+
+    const result = (await getRegisteredTool("getAiToEarnEnvironment").execute(
+      "test-call-id",
+      {}
+    )) as {
+      content: Array<{ type: string; text: string }>;
+      details: null;
+    };
+
+    expect(result).toEqual({
+      content: [
+        {
+          type: "text",
+          text: [
+            "Environment: self_hosted",
+            "Base URL: https://example.internal/api",
+            "Policy Platforms: KWAI, tiktok, wxGzh",
+            "Registered Publish Platforms: KWAI, tiktok, wxGzh",
+            "Policy But Missing Publish Platforms: none",
+            "Unsupported Publish Platforms: none",
+          ].join("\n"),
+        },
+      ],
       details: null,
     });
   });

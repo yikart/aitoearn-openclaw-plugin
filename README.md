@@ -58,6 +58,14 @@ npx @aitoearn/openclaw-plugin
 openclaw gateway restart
 ```
 
+插件会根据 `baseUrl` 自动判定环境并注入本地环境工具：
+
+- `*.aitoearn.cn` => `China`
+- `*.aitoearn.ai` => `Global`
+- 其他域名 => `self-hosted`
+
+启动后会注册 `getAiToEarnEnvironment`，并且只注册当前环境允许的 `publishPostTo*`。
+
 ## MCP Tools 同步
 
 插件会在 Gateway 启动时自动从 AiToEarn MCP 拉取最新 tools，并缓存到 OpenClaw state dir。

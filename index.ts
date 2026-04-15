@@ -7,9 +7,12 @@ import { getMcpClient } from "./src/mcp-client.js";
 import {
   buildPluginEntryConfig,
   configSchema,
+  getPublishPlatformPolicy,
+  getPublishToolPlatform,
   normalizeBaseUrl,
   PLUGIN_ID,
   PLUGIN_NAME,
+  resolveAiToEarnEnvironment,
   type PluginConfig,
 } from "./src/plugin-config.js";
 import { runInteractiveSetupFlow } from "./src/setup-flow.js";
@@ -17,6 +20,7 @@ import {
   applySyncToolDiscoveryLogs,
   loadToolDefinitionsSync,
 } from "./src/tool-discovery.js";
+import type { ToolDefinition } from "./src/tools.js";
 
 export default definePluginEntry({
   id: PLUGIN_ID,
@@ -43,6 +47,8 @@ export default definePluginEntry({
 
     const parsed = configSchema.safeParse(api.pluginConfig ?? {});
     const pluginConfig = (parsed.success ? parsed.data : {}) as PluginConfig;
+    const baseUrl = normalizeBaseUrl(pluginConfig.baseUrl);
+    const environment = resolveAiToEarnEnvironment(baseUrl);
     const discoveryResult = loadToolDefinitionsSync({
       config: api.config,
       pluginConfig,
@@ -51,11 +57,72 @@ export default definePluginEntry({
 
     applySyncToolDiscoveryLogs(api.logger, discoveryResult.logs);
 
-    for (const tool of discoveryResult.tools) {
+    const discoveredPublishPlatforms = sortUnique(
+      discoveryResult.tools
+        .map((tool) => getPublishToolPlatform(tool.name))
+        .filter((value): value is string => Boolean(value))
+    );
+    const policyPlatforms =
+      environment === "self_hosted"
+        ? [...discoveredPublishPlatforms]
+        : getPublishPlatformPolicy(environment);
+    const policyPlatformSet = new Set(policyPlatforms);
+    const filteredTools = discoveryResult.tools.filter((tool) =>
+      shouldRegisterTool(tool, environment, policyPlatformSet)
+    );
+    const registeredPublishPlatforms = sortUnique(
+      filteredTools
+        .map((tool) => getPublishToolPlatform(tool.name))
+        .filter((value): value is string => Boolean(value))
+    );
+    const policyButMissingPublishPlatforms =
+      environment === "self_hosted"
+        ? []
+        : policyPlatforms.filter(
+            (platform) => !discoveredPublishPlatforms.includes(platform)
+          );
+    const unsupportedPublishPlatforms =
+      environment === "self_hosted"
+        ? []
+        : discoveredPublishPlatforms.filter(
+            (platform) => !policyPlatformSet.has(platform)
+          );
+
+    api.registerTool({
+      name: "getAiToEarnEnvironment",
+      label: "getAiToEarnEnvironment",
+      description:
+        "Get the current AiToEarn runtime environment, publish platform policy, and registered publish tools derived from the configured baseUrl.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+      async execute() {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: formatEnvironmentSummary({
+                baseUrl,
+                environment,
+                policyPlatforms,
+                registeredPublishPlatforms,
+                policyButMissingPublishPlatforms,
+                unsupportedPublishPlatforms,
+              }),
+            },
+          ],
+          details: null,
+        };
+      },
+    });
+
+    for (const tool of filteredTools) {
+      const publishPlatform = getPublishToolPlatform(tool.name);
       api.registerTool({
         name: tool.name,
         label: tool.name,
-        description: tool.description,
+        description: describeTool(tool.description, environment, publishPlatform),
         parameters: tool.inputSchema,
         async execute(_toolCallId, params) {
           const config = await resolvePluginConfig(api);
@@ -147,4 +214,64 @@ async function resolvePluginConfig(
     apiKey,
     baseUrl: normalizeBaseUrl(config.baseUrl),
   };
+}
+
+function shouldRegisterTool(
+  tool: ToolDefinition,
+  environment: ReturnType<typeof resolveAiToEarnEnvironment>,
+  policyPlatformSet: Set<string>
+): boolean {
+  const publishPlatform = getPublishToolPlatform(tool.name);
+  if (!publishPlatform) {
+    return true;
+  }
+
+  if (environment === "self_hosted") {
+    return true;
+  }
+
+  return policyPlatformSet.has(publishPlatform);
+}
+
+function describeTool(
+  description: string,
+  environment: ReturnType<typeof resolveAiToEarnEnvironment>,
+  publishPlatform: string | null
+): string {
+  if (!publishPlatform || environment === "self_hosted") {
+    return description;
+  }
+
+  const envLabel = environment === "china" ? "China" : "Global";
+  return `AiToEarn ${envLabel} publish tool. ${description}`;
+}
+
+function formatEnvironmentSummary(params: {
+  baseUrl: string;
+  environment: ReturnType<typeof resolveAiToEarnEnvironment>;
+  policyPlatforms: string[];
+  registeredPublishPlatforms: string[];
+  policyButMissingPublishPlatforms: string[];
+  unsupportedPublishPlatforms: string[];
+}): string {
+  return [
+    `Environment: ${params.environment}`,
+    `Base URL: ${params.baseUrl}`,
+    `Policy Platforms: ${formatList(params.policyPlatforms)}`,
+    `Registered Publish Platforms: ${formatList(params.registeredPublishPlatforms)}`,
+    `Policy But Missing Publish Platforms: ${formatList(
+      params.policyButMissingPublishPlatforms
+    )}`,
+    `Unsupported Publish Platforms: ${formatList(
+      params.unsupportedPublishPlatforms
+    )}`,
+  ].join("\n");
+}
+
+function formatList(values: string[]): string {
+  return values.length > 0 ? values.join(", ") : "none";
+}
+
+function sortUnique(values: string[]): string[] {
+  return [...new Set(values)].sort();
 }

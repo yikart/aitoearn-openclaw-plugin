@@ -6,6 +6,43 @@ export const PACKAGE_NAME = "@aitoearn/openclaw-plugin";
 export const DEFAULT_BASE_URL = "https://aitoearn.ai/api";
 export const CHINA_BASE_URL = "https://aitoearn.cn/api";
 
+export type AiToEarnEnvironment = "china" | "global" | "self_hosted";
+
+export const CHINA_PUBLISH_PLATFORMS = [
+  "douyin",
+  "KWAI",
+  "bilibili",
+  "wxGzh",
+] as const;
+
+export const GLOBAL_PUBLISH_PLATFORMS = [
+  "tiktok",
+  "youtube",
+  "twitter",
+  "facebook",
+  "instagram",
+  "threads",
+  "pinterest",
+  "linkedin",
+] as const;
+
+const PUBLISH_TOOL_PLATFORM_BY_NAME: Record<string, string> = {
+  publishPostToBilibili: "bilibili",
+  publishPostToWxGzh: "wxGzh",
+  publishPostToYoutube: "youtube",
+  publishPostToPinterest: "pinterest",
+  publishPostToThreads: "threads",
+  publishPostToTiktok: "tiktok",
+  publishPostToFacebook: "facebook",
+  publishPostToInstagram: "instagram",
+  publishPostToKwai: "KWAI",
+  publishPostToTwitter: "twitter",
+  publishPostToDouyin: "douyin",
+  publishPostToLinkedIn: "linkedin",
+  publishPostToLinkedin: "linkedin",
+  publishPostToGoogleBusiness: "google_business",
+};
+
 const secretInputSchema = z.union([
   z.string(),
   z.record(z.string(), z.unknown()),
@@ -35,6 +72,56 @@ export function normalizeBaseUrl(value?: string): string {
   }
 
   return trimmed.replace(/\/+$/, "");
+}
+
+export function resolveAiToEarnEnvironment(
+  baseUrl?: string
+): AiToEarnEnvironment {
+  const normalized = normalizeBaseUrl(baseUrl);
+
+  try {
+    const hostname = new URL(normalized).hostname.toLowerCase();
+
+    if (hostname === "aitoearn.cn" || hostname.endsWith(".aitoearn.cn")) {
+      return "china";
+    }
+
+    if (hostname === "aitoearn.ai" || hostname.endsWith(".aitoearn.ai")) {
+      return "global";
+    }
+
+    return "self_hosted";
+  } catch {
+    const lower = normalized.toLowerCase();
+
+    if (lower.includes("aitoearn.cn")) {
+      return "china";
+    }
+
+    if (lower.includes("aitoearn.ai")) {
+      return "global";
+    }
+
+    return "self_hosted";
+  }
+}
+
+export function getPublishPlatformPolicy(
+  environment: AiToEarnEnvironment
+): string[] {
+  if (environment === "china") {
+    return [...CHINA_PUBLISH_PLATFORMS];
+  }
+
+  if (environment === "global") {
+    return [...GLOBAL_PUBLISH_PLATFORMS];
+  }
+
+  return [];
+}
+
+export function getPublishToolPlatform(toolName: string): string | null {
+  return PUBLISH_TOOL_PLATFORM_BY_NAME[toolName] ?? null;
 }
 
 export function buildPluginEntryConfig(setupConfig: SetupConfig): {
