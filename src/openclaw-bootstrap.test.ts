@@ -113,7 +113,7 @@ describe("openclaw-bootstrap", () => {
         {
           name: "@aitoearn/openclaw-plugin",
           version: "1.2.3",
-          files: ["dist", "openclaw.plugin.json"],
+          files: ["dist", "openclaw.plugin.json", "skills"],
           dependencies: {
             depA: "1.0.0",
           },
@@ -125,6 +125,14 @@ describe("openclaw-bootstrap", () => {
     );
     await writeFile(path.join(packageRoot, "dist", "index.js"), "export {};\n", "utf8");
     await writeFile(path.join(packageRoot, "openclaw.plugin.json"), "{}\n", "utf8");
+    await mkdir(path.join(packageRoot, "skills", "aitoearn-earn"), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(packageRoot, "skills", "aitoearn-earn", "SKILL.md"),
+      "---\nname: aitoearn-earn\ndescription: test\n---\n",
+      "utf8"
+    );
     await writeFile(path.join(packageRoot, "README.md"), "should not be copied\n", "utf8");
 
     await mkdir(path.join(packageRoot, "node_modules", "depA", "node_modules", "depB"), {
@@ -176,7 +184,7 @@ describe("openclaw-bootstrap", () => {
         manifest: {
           name: "@aitoearn/openclaw-plugin",
           version: "1.2.3",
-          files: ["dist", "openclaw.plugin.json"],
+          files: ["dist", "openclaw.plugin.json", "skills"],
           dependencies: {
             depA: "1.0.0",
           },
@@ -192,6 +200,12 @@ describe("openclaw-bootstrap", () => {
     expect(await readFile(path.join(installedRoot, "dist", "index.js"), "utf8")).toContain(
       "export"
     );
+    expect(
+      await readFile(
+        path.join(installedRoot, "skills", "aitoearn-earn", "SKILL.md"),
+        "utf8"
+      )
+    ).toContain("aitoearn-earn");
     expect(
       await readFile(
         path.join(installedRoot, "node_modules", "depA", "index.js"),
