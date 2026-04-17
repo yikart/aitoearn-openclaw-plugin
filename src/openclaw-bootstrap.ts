@@ -1,4 +1,3 @@
-import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
 import {
   cp,
@@ -289,9 +288,16 @@ async function resolveDependencyRoot(
   dependencyName: string,
   requesterDir: string
 ): Promise<string> {
-  const requireFromRequester = createRequire(path.join(requesterDir, "package.json"));
-  const resolvedEntry = requireFromRequester.resolve(dependencyName);
-  return await findPackageRoot(path.dirname(resolvedEntry));
+  for (const nodeModulesDir of resolveNodeModulesSearchDirs(requesterDir)) {
+    const dependencyRoot = path.join(nodeModulesDir, dependencyName);
+    if (await pathExists(path.join(dependencyRoot, "package.json"))) {
+      return dependencyRoot;
+    }
+  }
+
+  throw new Error(
+    `Could not locate installed package "${dependencyName}" from ${requesterDir}`
+  );
 }
 
 function resolveDependencyRelativePath(dependencyRoot: string): string {
@@ -315,6 +321,22 @@ function findOutermostNodeModulesDir(startPath: string): string | null {
     const parent = path.dirname(current);
     if (parent === current) {
       return result;
+    }
+
+    current = parent;
+  }
+}
+
+function resolveNodeModulesSearchDirs(startDir: string): string[] {
+  const results: string[] = [];
+  let current = path.resolve(startDir);
+
+  while (true) {
+    results.push(path.join(current, "node_modules"));
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return results;
     }
 
     current = parent;

@@ -5,7 +5,7 @@ AiToEarn 社交媒体管理工具的 OpenClaw 插件。
 ## 一键安装
 
 ```bash
-npx @aitoearn/openclaw-plugin
+npx -y @aitoearn/openclaw-plugin
 ```
 
 这个命令会自动：
@@ -14,19 +14,6 @@ npx @aitoearn/openclaw-plugin
 2. 引导输入 API Key 和环境
 3. 验证连通性
 4. 写入 `plugins.entries.aitoearn.config`
-
-兼容别名：
-
-```bash
-npx @aitoearn/openclaw-plugin install
-npx @aitoearn/openclaw-plugin setup
-```
-
-## 标准安装
-
-```bash
-openclaw plugins install @aitoearn/openclaw-plugin
-```
 
 ## 手动配置
 
@@ -52,16 +39,10 @@ openclaw config set plugins.entries.aitoearn.config.apiKey \
 3. 点击左侧菜单 **设置**
 4. 在 **API Key** 中点击创建，复制生成的 Key
 
-## 兼容命令
+如果你的 npm 版本会在首次执行时提示确认安装包，统一使用：
 
 ```bash
-openclaw aitoearn setup
-```
-
-这条命令仍可用，但后续推荐优先使用：
-
-```bash
-npx @aitoearn/openclaw-plugin
+npx -y @aitoearn/openclaw-plugin
 ```
 
 完成配置后，重启 Gateway：

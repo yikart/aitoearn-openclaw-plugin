@@ -39,14 +39,12 @@ interface CliDependencies {
   runSetupFlow: (options?: { showIntro?: boolean }) => Promise<SetupFlowResult>;
 }
 
-const HELP_TEXT = `Usage: npx @aitoearn/openclaw-plugin [install|setup]
+const HELP_TEXT = `Usage: npx -y @aitoearn/openclaw-plugin
 
 Bootstrap installer for the AiToEarn OpenClaw plugin.
 
 Examples:
-  npx @aitoearn/openclaw-plugin
-  npx @aitoearn/openclaw-plugin install
-  npx @aitoearn/openclaw-plugin setup`;
+  npx -y @aitoearn/openclaw-plugin`;
 
 export async function runSetupCli(
   args: string[],

@@ -212,6 +212,95 @@ describe("openclaw-bootstrap", () => {
       )
     ).toContain("module.exports");
   });
+
+  it("installs scoped dependencies without resolving their runtime entrypoint", async () => {
+    const packageRoot = await mkTempDir();
+    const homeDir = await mkTempDir();
+    const env = { OPENCLAW_STATE_DIR: path.join(homeDir, ".openclaw") };
+
+    await mkdir(path.join(packageRoot, "dist"), { recursive: true });
+    await writeFile(
+      path.join(packageRoot, "package.json"),
+      JSON.stringify(
+        {
+          name: "@aitoearn/openclaw-plugin",
+          version: "1.2.3",
+          files: ["dist", "openclaw.plugin.json"],
+          dependencies: {
+            "@scope/dep-a": "1.0.0",
+          },
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+    await writeFile(path.join(packageRoot, "dist", "index.js"), "export {};\n", "utf8");
+    await writeFile(path.join(packageRoot, "openclaw.plugin.json"), "{}\n", "utf8");
+
+    const scopedDependencyRoot = path.join(
+      packageRoot,
+      "node_modules",
+      "@scope",
+      "dep-a"
+    );
+    await mkdir(path.join(scopedDependencyRoot, "dist", "esm"), { recursive: true });
+    await writeFile(
+      path.join(scopedDependencyRoot, "package.json"),
+      JSON.stringify(
+        {
+          name: "@scope/dep-a",
+          version: "1.0.0",
+          type: "module",
+          exports: {
+            ".": {
+              import: "./dist/esm/index.js",
+              require: "./dist/cjs/index.js",
+            },
+          },
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+    await writeFile(
+      path.join(scopedDependencyRoot, "dist", "esm", "index.js"),
+      "export const ok = true;\n",
+      "utf8"
+    );
+
+    const result = await installPackageIntoOpenClaw(
+      {
+        rootDir: packageRoot,
+        manifest: {
+          name: "@aitoearn/openclaw-plugin",
+          version: "1.2.3",
+          files: ["dist", "openclaw.plugin.json"],
+          dependencies: {
+            "@scope/dep-a": "1.0.0",
+          },
+        },
+      } satisfies PackageContext,
+      env,
+      () => homeDir
+    );
+
+    expect(
+      await readFile(
+        path.join(
+          result.targetDir,
+          "node_modules",
+          "@scope",
+          "dep-a",
+          "dist",
+          "esm",
+          "index.js"
+        ),
+        "utf8"
+      )
+    ).toContain("ok = true");
+  });
 });
 
 async function mkTempDir(): Promise<string> {
