@@ -3,17 +3,121 @@ import {
   applySyncToolDiscoveryLogs,
   loadToolDefinitionsSync,
   resolveToolSnapshotPath,
+  runToolDiscoveryWorkerSync,
 } from "./tool-discovery.js";
 
+describe("runToolDiscoveryWorkerSync", () => {
+  it("returns the worker payload when the worker writes a result", () => {
+    const stdout = runToolDiscoveryWorkerSync({
+      createWorker: (_filename, options) => {
+        const data = options.workerData as {
+          resultBuffer: SharedArrayBuffer;
+          stateBuffer: SharedArrayBuffer;
+        };
+        const state = new Int32Array(data.stateBuffer);
+        const buffer = new Uint8Array(data.resultBuffer);
+        const encoded = new TextEncoder().encode(
+          JSON.stringify({
+            status: "ok",
+            tools: [],
+            invalidCount: 0,
+            duplicateCount: 0,
+          })
+        );
+
+        buffer.set(encoded);
+        Atomics.store(state, 1, encoded.length);
+        Atomics.store(state, 0, 1);
+        Atomics.notify(state, 0, 1);
+
+        return {
+          terminate: async () => 0,
+        };
+      },
+      env: {},
+      payload: {
+        config: {},
+        pluginConfig: {
+          apiKey: "test-api-key",
+          baseUrl: "https://aitoearn.ai/api",
+        },
+      },
+      resultBufferBytes: 1024,
+      timeoutMs: 50,
+      workerPath: new URL("file:///tmp/tool-discovery-worker.js"),
+    });
+
+    expect(JSON.parse(stdout)).toEqual({
+      status: "ok",
+      tools: [],
+      invalidCount: 0,
+      duplicateCount: 0,
+    });
+  });
+
+  it("throws when the worker times out", () => {
+    expect(() =>
+      runToolDiscoveryWorkerSync({
+        createWorker: () => ({
+          terminate: async () => 0,
+        }),
+        env: {},
+        payload: {
+          config: {},
+          pluginConfig: {
+            apiKey: "test-api-key",
+            baseUrl: "https://aitoearn.ai/api",
+          },
+        },
+        resultBufferBytes: 256,
+        timeoutMs: 1,
+        workerPath: new URL("file:///tmp/tool-discovery-worker.js"),
+      })
+    ).toThrow("timed out");
+  });
+
+  it("throws when the worker payload exceeds the shared buffer", () => {
+    expect(() =>
+      runToolDiscoveryWorkerSync({
+        createWorker: (_filename, options) => {
+          const data = options.workerData as {
+            stateBuffer: SharedArrayBuffer;
+          };
+          const state = new Int32Array(data.stateBuffer);
+
+          Atomics.store(state, 1, 2048);
+          Atomics.store(state, 0, 2);
+          Atomics.notify(state, 0, 1);
+
+          return {
+            terminate: async () => 0,
+          };
+        },
+        env: {},
+        payload: {
+          config: {},
+          pluginConfig: {
+            apiKey: "test-api-key",
+            baseUrl: "https://aitoearn.ai/api",
+          },
+        },
+        resultBufferBytes: 256,
+        timeoutMs: 50,
+        workerPath: new URL("file:///tmp/tool-discovery-worker.js"),
+      })
+    ).toThrow("exceeded");
+  });
+});
+
 describe("loadToolDefinitionsSync", () => {
-  const execFileSync = vi.fn();
+  const createWorker = vi.fn();
   const mkdirSync = vi.fn();
   const readFileSync = vi.fn();
   const renameSync = vi.fn();
   const writeFileSync = vi.fn();
 
   beforeEach(() => {
-    execFileSync.mockReset();
+    createWorker.mockReset();
     mkdirSync.mockReset();
     readFileSync.mockReset();
     renameSync.mockReset();
@@ -21,20 +125,37 @@ describe("loadToolDefinitionsSync", () => {
   });
 
   it("uses remote tools and writes a snapshot when helper succeeds", () => {
-    execFileSync.mockReturnValue(
-      JSON.stringify({
-        status: "ok",
-        tools: [
-          {
-            name: "remote_tool",
-            description: "Remote",
-            inputSchema: { type: "object", properties: {} },
-          },
-        ],
-        invalidCount: 0,
-        duplicateCount: 0,
-      })
-    );
+    createWorker.mockImplementation((_filename, options) => {
+      const data = options.workerData as {
+        resultBuffer: SharedArrayBuffer;
+        stateBuffer: SharedArrayBuffer;
+      };
+      const state = new Int32Array(data.stateBuffer);
+      const buffer = new Uint8Array(data.resultBuffer);
+      const encoded = new TextEncoder().encode(
+        JSON.stringify({
+          status: "ok",
+          tools: [
+            {
+              name: "remote_tool",
+              description: "Remote",
+              inputSchema: { type: "object", properties: {} },
+            },
+          ],
+          invalidCount: 0,
+          duplicateCount: 0,
+        })
+      );
+
+      buffer.set(encoded);
+      Atomics.store(state, 1, encoded.length);
+      Atomics.store(state, 0, 1);
+      Atomics.notify(state, 0, 1);
+
+      return {
+        terminate: async () => 0,
+      };
+    });
 
     const result = loadToolDefinitionsSync({
       config: {},
@@ -44,16 +165,16 @@ describe("loadToolDefinitionsSync", () => {
       },
       stateDir: "/tmp/openclaw-state",
       deps: {
-        execFileSync,
+        createWorker,
         fs: {
           mkdirSync,
           readFileSync,
           renameSync,
           writeFileSync,
         },
-        helperPath: "/tmp/helper.js",
         now: () => 12345,
         pid: 4321,
+        workerPath: new URL("file:///tmp/helper.js"),
       },
     });
 
@@ -65,13 +186,7 @@ describe("loadToolDefinitionsSync", () => {
         inputSchema: { type: "object", properties: {} },
       },
     ]);
-    expect(execFileSync).toHaveBeenCalledWith(
-      process.execPath,
-      ["/tmp/helper.js"],
-      expect.objectContaining({
-        timeout: 5000,
-      })
-    );
+    expect(createWorker).toHaveBeenCalled();
     expect(writeFileSync).toHaveBeenCalledWith(
       "/tmp/openclaw-state/cache/aitoearn-tools.json.4321.12345.tmp",
       expect.stringContaining('"remote_tool"'),
@@ -84,12 +199,6 @@ describe("loadToolDefinitionsSync", () => {
   });
 
   it("falls back to cached snapshot when helper returns sync_error", () => {
-    execFileSync.mockReturnValue(
-      JSON.stringify({
-        status: "sync_error",
-        message: "network timeout",
-      })
-    );
     readFileSync.mockReturnValue(
       JSON.stringify({
         version: 1,
@@ -112,13 +221,16 @@ describe("loadToolDefinitionsSync", () => {
       },
       stateDir: "/tmp/openclaw-state",
       deps: {
-        execFileSync,
+        createWorker: () => ({
+          terminate: async () => 0,
+        }),
         fs: {
           mkdirSync,
           readFileSync,
           renameSync,
           writeFileSync,
         },
+        timeoutMs: 1,
       },
     });
 
@@ -133,14 +245,7 @@ describe("loadToolDefinitionsSync", () => {
     expect(result.logs[0]?.message).toContain("using cached snapshot");
   });
 
-  it("does not fall back when helper reports a config error", () => {
-    execFileSync.mockReturnValue(
-      JSON.stringify({
-        status: "config_error",
-        message: "Missing AITOEARN_API_KEY",
-      })
-    );
-
+  it("returns none when no cached snapshot is available", () => {
     const result = loadToolDefinitionsSync({
       config: {},
       pluginConfig: {
@@ -149,19 +254,21 @@ describe("loadToolDefinitionsSync", () => {
       },
       stateDir: "/tmp/openclaw-state",
       deps: {
-        execFileSync,
+        createWorker: () => ({
+          terminate: async () => 0,
+        }),
         fs: {
           mkdirSync,
           readFileSync,
           renameSync,
           writeFileSync,
         },
+        timeoutMs: 1,
       },
     });
 
     expect(result.source).toBe("none");
     expect(result.tools).toEqual([]);
-    expect(readFileSync).not.toHaveBeenCalled();
   });
 });
 

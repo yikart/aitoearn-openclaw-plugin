@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { runSetupCli, type CommandResult } from "./cli.js";
+import { runSetupCli } from "./cli.js";
+import type {
+  PackageContext,
+  PackageInstallResult,
+} from "./openclaw-bootstrap.js";
 import type { SetupFlowResult } from "./setup-flow.js";
 
 function createPromptApi() {
@@ -16,42 +20,60 @@ function createPromptApi() {
 
 describe("runSetupCli", () => {
   let prompts: ReturnType<typeof createPromptApi>;
-  let runCommand: ReturnType<typeof vi.fn>;
-  let loadPackageVersion: ReturnType<typeof vi.fn>;
+  let loadPackageContext: ReturnType<typeof vi.fn>;
+  let installPlugin: ReturnType<typeof vi.fn>;
+  let readConfig: ReturnType<typeof vi.fn>;
+  let writeConfig: ReturnType<typeof vi.fn>;
   let runSetupFlow: ReturnType<typeof vi.fn>;
+  let packageContext: PackageContext;
 
   beforeEach(() => {
     prompts = createPromptApi();
-    runCommand = vi.fn<(_: string, __: string[]) => Promise<CommandResult>>();
-    loadPackageVersion = vi.fn().mockResolvedValue("1.2.3");
+    packageContext = {
+      rootDir: "/tmp/aitoearn-package",
+      manifest: {
+        name: "@aitoearn/openclaw-plugin",
+        version: "1.2.3",
+      },
+    };
+    loadPackageContext = vi.fn().mockResolvedValue(packageContext);
+    installPlugin = vi
+      .fn<(_: PackageContext) => Promise<PackageInstallResult>>()
+      .mockResolvedValue({
+        replacedExisting: false,
+        targetDir: "/tmp/.openclaw/extensions/aitoearn",
+      });
+    readConfig = vi.fn().mockResolvedValue({
+      plugins: {
+        entries: {
+          existing: { enabled: true },
+        },
+      },
+    });
+    writeConfig = vi.fn().mockResolvedValue("/tmp/.openclaw/openclaw.json");
     runSetupFlow = vi.fn<() => Promise<SetupFlowResult>>();
   });
 
-  it("fails fast when OpenClaw CLI is unavailable", async () => {
-    runCommand.mockResolvedValueOnce({
-      code: 1,
-      stdout: "",
-      stderr: "spawn openclaw ENOENT",
-    });
+  it("shows help for --help", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    const exitCode = await runSetupCli([], {
+    const exitCode = await runSetupCli(["--help"], {
       prompts,
-      runCommand,
-      loadPackageVersion,
+      loadPackageContext,
+      installPlugin,
+      readConfig,
+      writeConfig,
       runSetupFlow,
     });
 
-    expect(exitCode).toBe(1);
-    expect(prompts.cancel).toHaveBeenCalled();
-    expect(runSetupFlow).not.toHaveBeenCalled();
+    expect(exitCode).toBe(0);
+    expect(logSpy).toHaveBeenCalled();
+    expect(loadPackageContext).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
   });
 
-  it("installs the plugin when missing and writes OpenClaw config", async () => {
-    runCommand
-      .mockResolvedValueOnce({ code: 0, stdout: "2026.3.28", stderr: "" })
-      .mockResolvedValueOnce({ code: 1, stdout: "", stderr: "plugin not found" })
-      .mockResolvedValueOnce({ code: 0, stdout: "installed", stderr: "" })
-      .mockResolvedValueOnce({ code: 0, stdout: "updated", stderr: "" });
+  it("installs plugin files and writes OpenClaw config", async () => {
     runSetupFlow.mockResolvedValue({
       status: "completed",
       config: {
@@ -63,65 +85,63 @@ describe("runSetupCli", () => {
 
     const exitCode = await runSetupCli([], {
       prompts,
-      runCommand,
-      loadPackageVersion,
+      loadPackageContext,
+      installPlugin,
+      readConfig,
+      writeConfig,
       runSetupFlow,
     });
 
     expect(exitCode).toBe(0);
-    expect(runCommand).toHaveBeenNthCalledWith(1, "openclaw", ["--version"]);
-    expect(runCommand).toHaveBeenNthCalledWith(2, "openclaw", [
-      "plugins",
-      "inspect",
-      "aitoearn",
-      "--json",
-    ]);
-    expect(runCommand).toHaveBeenNthCalledWith(3, "openclaw", [
-      "plugins",
-      "install",
-      "@aitoearn/openclaw-plugin@1.2.3",
-    ]);
-
-    const configCall = runCommand.mock.calls[3];
-    expect(configCall?.[0]).toBe("openclaw");
-    expect(configCall?.[1]?.slice(0, 3)).toEqual([
-      "config",
-      "set",
-      "--batch-json",
-    ]);
-
-    const batchPayload = JSON.parse(configCall?.[1]?.[3] ?? "[]") as Array<{
-      path: string;
-      value: unknown;
-    }>;
-    expect(batchPayload).toEqual([
-      { path: "plugins.entries.aitoearn.enabled", value: true },
-      {
-        path: "plugins.entries.aitoearn.config.apiKey",
-        value: "test-api-key",
+    expect(loadPackageContext).toHaveBeenCalledTimes(1);
+    expect(installPlugin).toHaveBeenCalledWith(packageContext);
+    expect(writeConfig).toHaveBeenCalledWith({
+      plugins: {
+        entries: {
+          existing: { enabled: true },
+          aitoearn: {
+            enabled: true,
+            config: {
+              apiKey: "test-api-key",
+              baseUrl: "https://aitoearn.ai/api",
+            },
+          },
+        },
       },
-      {
-        path: "plugins.entries.aitoearn.config.baseUrl",
-        value: "https://aitoearn.ai/api",
-      },
-    ]);
+    });
     expect(prompts.outro).toHaveBeenCalled();
   });
 
-  it("skips install when the plugin is already installed", async () => {
-    runCommand
-      .mockResolvedValueOnce({ code: 0, stdout: "2026.3.28", stderr: "" })
-      .mockResolvedValueOnce({ code: 0, stdout: "{}", stderr: "" });
+  it("returns success when setup is cancelled after installation", async () => {
     runSetupFlow.mockResolvedValue({ status: "cancelled" });
 
     const exitCode = await runSetupCli([], {
       prompts,
-      runCommand,
-      loadPackageVersion,
+      loadPackageContext,
+      installPlugin,
+      readConfig,
+      writeConfig,
       runSetupFlow,
     });
 
     expect(exitCode).toBe(0);
-    expect(runCommand).toHaveBeenCalledTimes(2);
+    expect(writeConfig).not.toHaveBeenCalled();
+  });
+
+  it("surfaces installation errors", async () => {
+    installPlugin.mockRejectedValue(new Error("copy failed"));
+
+    const exitCode = await runSetupCli([], {
+      prompts,
+      loadPackageContext,
+      installPlugin,
+      readConfig,
+      writeConfig,
+      runSetupFlow,
+    });
+
+    expect(exitCode).toBe(1);
+    expect(prompts.cancel).toHaveBeenCalledWith("copy failed");
+    expect(runSetupFlow).not.toHaveBeenCalled();
   });
 });

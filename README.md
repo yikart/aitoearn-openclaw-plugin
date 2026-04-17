@@ -2,7 +2,7 @@
 
 AiToEarn 社交媒体管理工具的 OpenClaw 插件。
 
-## 安装
+## 一键安装
 
 ```bash
 npx @aitoearn/openclaw-plugin
@@ -10,15 +10,27 @@ npx @aitoearn/openclaw-plugin
 
 这个命令会自动：
 
-1. 检查本机是否已安装 `openclaw`
-2. 检查并安装 `@aitoearn/openclaw-plugin`
-3. 引导输入 API Key 和环境
-4. 验证连通性并写入 `plugins.entries.aitoearn.config`
+1. 将当前插件包安装到 OpenClaw 的扩展目录
+2. 引导输入 API Key 和环境
+3. 验证连通性
+4. 写入 `plugins.entries.aitoearn.config`
 
-## 手动安装
+兼容别名：
+
+```bash
+npx @aitoearn/openclaw-plugin install
+npx @aitoearn/openclaw-plugin setup
+```
+
+## 标准安装
 
 ```bash
 openclaw plugins install @aitoearn/openclaw-plugin
+```
+
+## 手动配置
+
+```bash
 openclaw config set plugins.entries.aitoearn.enabled true --strict-json
 openclaw config set plugins.entries.aitoearn.config.apiKey "your-api-key"
 openclaw config set plugins.entries.aitoearn.config.baseUrl "https://aitoearn.ai/api"

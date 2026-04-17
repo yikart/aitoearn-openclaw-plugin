@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   readFileSync,
@@ -6,7 +5,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { Worker, type WorkerOptions } from "node:worker_threads";
 import type { PluginLogger } from "openclaw/plugin-sdk/plugin-entry";
 import type { PluginConfig } from "./plugin-config.js";
 import { PLUGIN_ID } from "./plugin-config.js";
@@ -40,12 +39,34 @@ interface ToolDiscoveryFs {
   writeFileSync: typeof writeFileSync;
 }
 
+interface WorkerLike {
+  terminate(): Promise<number>;
+}
+
+interface ToolDiscoveryWorkerData {
+  payload: ToolDiscoveryHelperPayload;
+  env: NodeJS.ProcessEnv;
+  resultBuffer: SharedArrayBuffer;
+  stateBuffer: SharedArrayBuffer;
+}
+
+interface RunWorkerSyncOptions {
+  createWorker: (filename: URL, options: WorkerOptions) => WorkerLike;
+  env: NodeJS.ProcessEnv;
+  payload: ToolDiscoveryHelperPayload;
+  resultBufferBytes: number;
+  timeoutMs: number;
+  workerPath: URL;
+}
+
 interface SyncToolDiscoveryDeps {
-  execFileSync: typeof execFileSync;
+  createWorker: (filename: URL, options: WorkerOptions) => WorkerLike;
   fs: ToolDiscoveryFs;
-  helperPath: string;
   now: () => number;
   pid: number;
+  resultBufferBytes: number;
+  timeoutMs: number;
+  workerPath: URL;
 }
 
 export interface LoadToolDefinitionsSyncParams {
@@ -56,9 +77,9 @@ export interface LoadToolDefinitionsSyncParams {
   deps?: Partial<SyncToolDiscoveryDeps>;
 }
 
-const DEFAULT_HELPER_PATH = fileURLToPath(
-  new URL("./tool-discovery-helper.js", import.meta.url)
-);
+const DEFAULT_WORKER_PATH = new URL("./tool-discovery-worker.js", import.meta.url);
+const DEFAULT_RESULT_BUFFER_BYTES = 1024 * 1024;
+const DEFAULT_TIMEOUT_MS = 5000;
 
 export function loadToolDefinitionsSync(
   params: LoadToolDefinitionsSyncParams
@@ -171,6 +192,56 @@ export function resolveToolSnapshotPath(stateDir: string): string {
   return path.join(stateDir, "cache", `${PLUGIN_ID}-tools.json`);
 }
 
+export function runToolDiscoveryWorkerSync(
+  options: RunWorkerSyncOptions
+): string {
+  const state = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 2));
+  const resultBuffer = new Uint8Array(
+    new SharedArrayBuffer(options.resultBufferBytes)
+  );
+
+  let worker: WorkerLike;
+
+  try {
+    const workerData: ToolDiscoveryWorkerData = {
+      payload: options.payload,
+      env: options.env,
+      resultBuffer: resultBuffer.buffer as SharedArrayBuffer,
+      stateBuffer: state.buffer as SharedArrayBuffer,
+    };
+    worker = options.createWorker(options.workerPath, { workerData });
+  } catch (error) {
+    throw new Error(`Failed to start tool discovery worker: ${formatError(error)}`);
+  }
+
+  const waitResult = Atomics.wait(state, 0, 0, options.timeoutMs);
+  const status = Atomics.load(state, 0);
+  const length = Atomics.load(state, 1);
+
+  if (waitResult === "timed-out" && status === WorkerSyncState.Pending) {
+    void worker.terminate();
+    throw new Error(`Tool discovery worker timed out after ${options.timeoutMs}ms.`);
+  }
+
+  if (status === WorkerSyncState.ResultTooLarge) {
+    throw new Error(
+      `Tool discovery worker payload exceeded ${options.resultBufferBytes} bytes.`
+    );
+  }
+
+  if (status !== WorkerSyncState.Success) {
+    throw new Error("Tool discovery worker did not return a valid response.");
+  }
+
+  return decodeWorkerResult(resultBuffer, length);
+}
+
+const enum WorkerSyncState {
+  Pending = 0,
+  Success = 1,
+  ResultTooLarge = 2,
+}
+
 function resolveDeps(
   overrides?: Partial<SyncToolDiscoveryDeps>
 ): SyncToolDiscoveryDeps {
@@ -189,10 +260,12 @@ function resolveDeps(
       };
 
   return {
-    execFileSync,
-    helperPath: DEFAULT_HELPER_PATH,
+    createWorker: (filename, options) => new Worker(filename, options),
     now: () => Date.now(),
     pid: process.pid,
+    resultBufferBytes: DEFAULT_RESULT_BUFFER_BYTES,
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+    workerPath: DEFAULT_WORKER_PATH,
     ...overrides,
     fs,
   };
@@ -204,15 +277,16 @@ function runToolDiscoveryHelperSync(
   deps: SyncToolDiscoveryDeps
 ) {
   try {
-    const stdout = deps.execFileSync(process.execPath, [deps.helperPath], {
-      encoding: "utf8",
+    const stdout = runToolDiscoveryWorkerSync({
+      createWorker: deps.createWorker,
       env,
-      input: JSON.stringify(payload),
-      timeout: 5000,
-      maxBuffer: 1024 * 1024,
+      payload,
+      resultBufferBytes: deps.resultBufferBytes,
+      timeoutMs: deps.timeoutMs,
+      workerPath: deps.workerPath,
     });
-
     const parsed = parseToolDiscoveryHelperResult(JSON.parse(stdout));
+
     if (!parsed) {
       return {
         status: "sync_error" as const,
@@ -224,7 +298,7 @@ function runToolDiscoveryHelperSync(
   } catch (error) {
     return {
       status: "sync_error" as const,
-      message: formatExecFileError(error),
+      message: formatError(error),
     };
   }
 }
@@ -266,6 +340,14 @@ function writeToolSnapshotSync(
   deps.fs.renameSync(tempPath, pathname);
 }
 
+function decodeWorkerResult(buffer: Uint8Array, length: number): string {
+  if (length <= 0 || length > buffer.length) {
+    throw new Error("Tool discovery worker returned an invalid payload length.");
+  }
+
+  return new TextDecoder().decode(buffer.subarray(0, length));
+}
+
 function buildSkippedToolWarning(
   prefix: string,
   invalidCount: number,
@@ -280,27 +362,6 @@ function buildSkippedToolWarning(
   }
 
   return `${prefix} (${parts.join(", ")}).`;
-}
-
-function formatExecFileError(error: unknown): string {
-  if (error instanceof Error) {
-    const syncError = error as Error & {
-      stderr?: Buffer | string;
-      stdout?: Buffer | string;
-      signal?: NodeJS.Signals;
-    };
-    const stderr = syncError.stderr?.toString().trim();
-    const stdout = syncError.stdout?.toString().trim();
-    const detail = stderr || stdout;
-
-    if (syncError.signal) {
-      return `helper terminated by signal ${syncError.signal}`;
-    }
-
-    return detail ? `${syncError.message}: ${detail}` : syncError.message;
-  }
-
-  return String(error);
 }
 
 function formatError(error: unknown): string {
