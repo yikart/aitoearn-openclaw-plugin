@@ -2,7 +2,7 @@
   "id": "aitoearn",
   "name": "AiToEarn",
   "description": "AiToEarn social media management tools",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

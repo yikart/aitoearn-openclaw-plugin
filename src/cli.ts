@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import * as p from "@clack/prompts";
+import { realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -148,8 +149,25 @@ async function main(): Promise<void> {
   }
 }
 
-const currentFilePath = fileURLToPath(import.meta.url);
-if (process.argv[1] && currentFilePath === path.resolve(process.argv[1])) {
+export function shouldRunCliMain(
+  entryPath: string | undefined,
+  moduleUrl: string = import.meta.url
+): boolean {
+  if (!entryPath) {
+    return false;
+  }
+
+  const resolvedEntryPath = path.resolve(entryPath);
+  const currentFilePath = fileURLToPath(moduleUrl);
+
+  try {
+    return realpathSync(resolvedEntryPath) === realpathSync(currentFilePath);
+  } catch {
+    return currentFilePath === resolvedEntryPath;
+  }
+}
+
+if (shouldRunCliMain(process.argv[1])) {
   void main().catch((error) => {
     const message = error instanceof Error ? error.message : String(error);
     p.cancel(message);
