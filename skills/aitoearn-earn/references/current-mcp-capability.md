@@ -1,269 +1,56 @@
-# AiToEarn 当前可用 MCP 能力
+# AiToEarn 赚钱场景索引
 
-本文件面向用户说明 AiToEarn 当前可用的赚钱相关 MCP 能力，供 `aitoearn-earn` skill 执行时参考。
+本文件只做场景导航，不承载完整执行细节。
 
-注意：
+## 使用方式
 
-- 插件会在启动时按 `baseUrl` 自动判定 `China / Global / self_hosted`
-- 插件会本地注册 `getAiToEarnEnvironment`
-- 插件不会把服务端提供的全部 `publishPostTo*` 原样注册出来，而是会按环境过滤
+- 不要默认全量读取所有 reference
+- 先判断用户现在处于赚钱闭环的哪一阶段，再读取对应文档
+- 如果只是要确认当前场景结构、能力范围和 reference 分工，再看本文件
 
-## 能力概览
+## 当前 skill 的目标场景
 
-## MCP 发布平台策略与注册规则
+这是一个“主动赚钱的龙虾”场景型 skill。
 
-发布类任务先看 `getAiToEarnEnvironment`，不要直接以“服务端提供了某个 `publishPostTo*`”推断当前环境可用。
+目标不是单纯回答某个工具怎么用，而是帮助一个拟人化角色持续推进这条闭环：
 
-### China
+1. 判断当前环境和可发布平台
+2. 判断今天最容易赚到哪一笔钱
+3. 把赚钱动作本身变成内容资产
+4. 执行任务、推广或报名动作
+5. 跟踪已发布记录、收益和数据
+6. 给出下一轮优化建议
 
-China 策略仅支持这些平台的 MCP 发布：
+默认经营思路是：
 
-- 抖音
-- 快手
-- 哔哩哔哩
-- 微信公众号
+1. 先侦察环境和机会
+2. 先拿离钱最近的一条路径
+3. 再把赚钱过程内容化
+4. 用结果继续滚动下一轮机会
 
-补充说明：
+## 按阶段读取 reference
 
-- 小红书当前不支持 MCP 发布
-- `douyin` 属于 China 策略允许平台，但当前未提供 `publishPostToDouyin`
+- 场景总闭环、默认工作顺序、输出结构：
+  - `scenario-loop.md`
+- 选哪条赚钱路径、各路径进入条件与优先级：
+  - `monetization-paths.md`
+- 环境判断、平台矩阵、发布前检查：
+  - `environment-and-publishing.md`
+- 具体工具执行链路和关键主键：
+  - `execution-playbooks.md`
 
-### Global
+## 当前覆盖的赚钱能力
 
-Global 策略仅支持这些平台的 MCP 发布：
+- 创作者任务：浏览任务、接任务、提交任务、样品单
+- Affiliate：推广链接、邀请码、返佣总览、返佣明细、结算
+- 已发布任务：`My Tasks -> Published` 列表与详情
+- 互动证据：创建、查询、删除互动记录
+- Campaign：活动市场、报名、核销码、活动作品提交
+- 数据分析：任务数据、推广作品详情与趋势
 
-- TikTok
-- YouTube
-- Twitter
-- Facebook
-- Instagram
-- Threads
-- Pinterest
-- LinkedIn
+## 通用提醒
 
-补充说明：
-
-- `linkedin` 属于 Global 策略允许平台，但当前未提供 `publishPostToLinkedIn`
-
-### 环境工具字段说明
-
-- `policyPlatforms`：当前环境策略允许的平台
-- `registeredPublishPlatforms`：插件当前实际注册的平台
-- `policyButMissingPublishPlatforms`：策略允许，但当前未提供对应 publish tool 的平台
-- `unsupportedPublishPlatforms`：服务端虽然提供了 publish tool，但当前环境策略不允许，插件已过滤的平台
-
-## 当前可用的赚钱相关 tools
-
-### 任务市场与接单
-
-- `listTaskMarket`
-- `getTaskDetail`
-- `acceptTask`
-
-说明：
-
-- 以上工具可用于浏览任务、查看详情和接任务
-
-### 我的任务与提交
-
-- `listMyUserTasks`
-- `getMyUserTaskDetail`
-- `submitTask`
-
-说明：
-
-- `submitTask` 支持两种模式：
-  - `userTaskId + workLink`
-  - `userTaskId + publishRecordId`
-
-### 样品单
-
-- `applyFreeSample`
-- `listMySampleOrders`
-- `getMySampleOrderDetail`
-
-说明：
-
-- 样品单相关工具当前可用
-
-### Affiliate
-
-- `getAffiliateLink`
-- `bindAffiliateInviteCode`
-- `getAffiliateOverview`
-- `listAffiliateCommissions`
-- `getAffiliateSettlement`
-
-说明：
-
-- 以上工具覆盖推广链接、邀请码、返佣总览、返佣明细与结算信息
-
-### 已发布任务
-
-- `listMyPublishedTasks`
-- `getMyPublishedTaskDetail`
-
-说明：
-
-- 以上工具覆盖 `My Tasks -> Published` 列表与详情
-
-### 互动任务证据
-
-- `createInteractionRecord`
-- `listInteractionRecords`
-- `deleteInteractionRecord`
-
-说明：
-
-- 以上工具覆盖互动任务证据的创建、查询与删除
-
-### Campaign 探店/活动
-
-- `listCampaignMarket`
-- `getCampaignDetail`
-- `applyCampaign`
-- `listMyCampaignApplications`
-- `getCampaignVerifyCode`
-- `submitCampaignContent`
-
-说明：
-
-- 以上工具覆盖活动浏览、详情、报名、核销码与作品提交
-
-### 任务统计与推广作品
-
-- `getTaskPostsDataCube`
-- `getTaskPostsTrend`
-- `listPromotionPosts`
-- `getPromotionPostDetail`
-- `getPromotionPostTrend`
-
-说明：
-
-- 以上工具覆盖任务统计、推广作品列表、详情与趋势
-
-## 支撑完成任务的已有内容工具
-
-### 素材与爬取
-
-- `createCrawlTask`
-- `getCrawlTaskStatus`
-- `createMedia`
-- `listMedia`
-- `listMediaGroups`
-- `getMediaGroupInfoByName`
-
-### 草稿与 AI 生成
-
-- `createDraft`
-- `listDrafts`
-- `getDraftDetail`
-- `deleteDraft`
-- `listDraftGroups`
-- `getDraftGroupInfoByName`
-- `getDraftGenerationPricing`
-- `createVideoDraft`
-- `createImageTextDraft`
-- `getDraftTaskStatus`
-
-### 账号与发布
-
-- `getAccountGroupList`
-- `getAccountListByGroupId`
-- `getAllAccounts`
-- `getAccountDetail`
-- `publishRestrictions`
-- `publishPostToBilibili`
-- `publishPostToWxGzh`
-- `publishPostToYoutube`
-- `publishPostToPinterest`
-- `publishPostToThreads`
-- `publishPostToTiktok`
-- `publishPostToFacebook`
-- `publishPostToInstagram`
-- `publishPostToKwai`
-- `publishPostToTwitter`
-- `getPublishingTaskStatus`
-
-说明：
-
-- 上面是当前可用的 publish tools，不等于当前插件在任意环境都会注册
-- 实际可调用集合以 `getAiToEarnEnvironment.registeredPublishPlatforms` 和当前工具注册结果为准
-
-## 当前 skill 支持的闭环
-
-### 普通任务
-
-1. 浏览任务市场
-2. 查看任务详情
-3. 接任务
-4. 查询我的任务
-5. 准备内容
-6. 发布或直接提供作品链接
-7. 提交任务
-
-### 样品任务
-
-1. 查看任务详情
-2. 携带地址和押金信息接任务
-3. 申请免费样品
-4. 查询样品单
-
-### Affiliate
-
-1. 查询推广链接
-2. 绑定邀请码
-3. 查询返佣总览
-4. 查询返佣明细
-5. 查询结算信息
-
-### 已发布任务
-
-1. 查询 `My Tasks -> Published`
-2. 查询单个已发布任务详情
-
-### 互动任务
-
-1. 创建互动证据
-2. 查询互动证据列表
-3. 删除误记录
-
-### Campaign 活动
-
-1. 浏览活动市场
-2. 查看活动详情
-3. 报名活动
-4. 查询我的报名
-5. 查询核销码
-6. 提交活动作品
-
-### 任务统计
-
-1. 查询任务聚合统计
-2. 查询任务趋势
-3. 查询推广作品列表
-4. 查询推广作品详情
-5. 查询推广作品趋势
-
-## 环境差异处理
-
-如果当前 `baseUrl` 对应的环境还没同步到同一批 tools，skill 应明确说明：
-
-- 这是环境差异，不是产品能力缺失
-- 完整接口契约已经整理在 `docs/aitoearn-monetization-mcp-spec.md`
-- 有工具就执行，缺工具就降级说明
-
-## 执行规则
-
-- 只有 `acceptTask`、`submitTask` 这类主流程动作可以在用户目标明确时直接执行
-- `bindAffiliateInviteCode`、`applyFreeSample`、`createInteractionRecord`、`deleteInteractionRecord`、`applyCampaign`、`submitCampaignContent` 必须有用户明确执行意图
-- 但每次接任务前必须先看 `getTaskDetail`
-- 不要伪造主键或用户内容
-- 如果用户缺素材或作品链接，优先复用当前已有内容工具，不要直接结束流程
-- 做发布类任务时，先按环境判断平台是否支持 MCP 发布：
-  - `China` 只走抖音、快手、哔哩哔哩、微信公众号
-  - `Global` 只走 TikTok、YouTube、Twitter、Facebook、Instagram、Threads、Pinterest、LinkedIn
-  - 小红书不走 MCP 发布链路
-- 如果 `policyPlatforms` 包含平台，但 `registeredPublishPlatforms` 不包含：
-  - 说明当前未提供对应 publish tool
-  - 不要伪造本地能力
+- 发布链路开始前先调 `getAiToEarnEnvironment`
+- 当前环境缺少某个 tool 时，要明确说“当前环境未提供该 MCP tool”
+- 只有金额字段保持服务端原始分单位，不自动换算；积分和其他非金额计数保持原始值。需要解释金额时统一按 `100 = 1 元` 说明
+- 具体执行时以当前已注册 tool 的 `description`、`inputSchema` 和环境结果为准

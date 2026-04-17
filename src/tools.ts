@@ -31,6 +31,30 @@ export interface SanitizedToolsResult {
   duplicateCount: number;
 }
 
+type JsonSchema = boolean | Record<string, unknown>;
+
+const RECORD_OF_SCHEMAS_KEYS = [
+  "$defs",
+  "definitions",
+  "dependentSchemas",
+  "patternProperties",
+  "properties",
+] as const;
+
+const SINGLE_SCHEMA_KEYS = [
+  "additionalProperties",
+  "contains",
+  "else",
+  "if",
+  "not",
+  "propertyNames",
+  "then",
+  "unevaluatedItems",
+  "unevaluatedProperties",
+] as const;
+
+const ARRAY_OF_SCHEMAS_KEYS = ["allOf", "anyOf", "oneOf"] as const;
+
 export interface ParsedToolSnapshotResult extends SanitizedToolsResult {
   snapshot: ToolSnapshot | null;
 }
@@ -163,8 +187,125 @@ function normalizeToolDefinition(value: unknown): ToolDefinition | null {
     name,
     description:
       typeof value.description === "string" ? value.description : "",
-    inputSchema: value.inputSchema,
+    inputSchema: normalizeToolInputSchema(value.inputSchema),
   };
+}
+
+export function normalizeToolInputSchema(
+  inputSchema: Record<string, unknown>
+): Record<string, unknown> {
+  const normalized = normalizeJsonSchema(inputSchema);
+  return isRecord(normalized) ? normalized : inputSchema;
+}
+
+function normalizeJsonSchema(schema: JsonSchema): JsonSchema {
+  if (typeof schema === "boolean") {
+    return schema;
+  }
+
+  const normalized: Record<string, unknown> = { ...schema };
+
+  for (const key of RECORD_OF_SCHEMAS_KEYS) {
+    const value = normalized[key];
+    if (isRecord(value)) {
+      normalized[key] = normalizeSchemaRecordMap(value);
+    }
+  }
+
+  for (const key of SINGLE_SCHEMA_KEYS) {
+    const value = normalized[key];
+    if (isJsonSchema(value)) {
+      normalized[key] = normalizeJsonSchema(value);
+    }
+  }
+
+  for (const key of ARRAY_OF_SCHEMAS_KEYS) {
+    const value = normalized[key];
+    if (Array.isArray(value)) {
+      normalized[key] = normalizeSchemaArray(value);
+    }
+  }
+
+  const items = normalized.items;
+  if (Array.isArray(items)) {
+    applyTupleItemsCompatibility(normalized, items);
+  } else if (isJsonSchema(items)) {
+    normalized.items = normalizeJsonSchema(items);
+  }
+
+  return normalized;
+}
+
+function normalizeSchemaRecordMap(
+  values: Record<string, unknown>
+): Record<string, unknown> {
+  const normalized: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(values)) {
+    normalized[key] = isJsonSchema(value) ? normalizeJsonSchema(value) : value;
+  }
+
+  return normalized;
+}
+
+function normalizeSchemaArray(values: unknown[]): unknown[] {
+  return values.map((value) =>
+    isJsonSchema(value) ? normalizeJsonSchema(value) : value
+  );
+}
+
+function applyTupleItemsCompatibility(
+  schema: Record<string, unknown>,
+  tupleItems: unknown[]
+): void {
+  if (tupleItems.length === 0 || !tupleItems.every(isJsonSchema)) {
+    return;
+  }
+
+  const schemaTupleItems = tupleItems as JsonSchema[];
+  const normalizedItems = schemaTupleItems.map((value) =>
+    normalizeJsonSchema(value)
+  );
+  const uniqueItems = dedupeSchemas(normalizedItems);
+
+  schema.items =
+    uniqueItems.length === 1
+      ? uniqueItems[0]
+      : {
+          anyOf: uniqueItems,
+        };
+  schema.minItems = tupleItems.length;
+  schema.maxItems = tupleItems.length;
+  delete schema.additionalItems;
+}
+
+function dedupeSchemas(values: JsonSchema[]): JsonSchema[] {
+  const unique = new Map<string, JsonSchema>();
+
+  for (const value of values) {
+    unique.set(stableSerialize(value), value);
+  }
+
+  return [...unique.values()];
+}
+
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableSerialize(entry)).join(",")}]`;
+  }
+
+  if (isRecord(value)) {
+    const keys = Object.keys(value).sort();
+    return `{${keys
+      .map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? String(value);
+}
+
+function isJsonSchema(value: unknown): value is JsonSchema {
+  return typeof value === "boolean" || isRecord(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -22,6 +22,20 @@ import {
 } from "./src/tool-discovery.js";
 import type { ToolDefinition } from "./src/tools.js";
 
+const MONEY_RELATED_TOOL_NAMES = new Set([
+  "acceptTask",
+  "getAffiliateOverview",
+  "getAffiliateSettlement",
+  "getMySampleOrderDetail",
+  "getTaskDetail",
+  "listAffiliateCommissions",
+  "listMySampleOrders",
+  "listTaskMarket",
+]);
+
+const MONEY_UNITS_NOTE =
+  "Money amounts are returned in minor units (such as cents). Use the response currency field when interpreting them. Points and other non-money counters stay in raw values.";
+
 export default definePluginEntry({
   id: PLUGIN_ID,
   name: PLUGIN_NAME,
@@ -122,7 +136,7 @@ export default definePluginEntry({
       api.registerTool({
         name: tool.name,
         label: tool.name,
-        description: describeTool(tool.description, environment, publishPlatform),
+        description: describeTool(tool, environment, publishPlatform),
         parameters: tool.inputSchema,
         async execute(_toolCallId, params) {
           const config = await resolvePluginConfig(api);
@@ -234,16 +248,29 @@ function shouldRegisterTool(
 }
 
 function describeTool(
-  description: string,
+  tool: ToolDefinition,
   environment: ReturnType<typeof resolveAiToEarnEnvironment>,
   publishPlatform: string | null
 ): string {
+  let description = tool.description;
+
   if (!publishPlatform || environment === "self_hosted") {
-    return description;
+    return appendMoneyUnitsNote(tool.name, description);
   }
 
   const envLabel = environment === "china" ? "China" : "Global";
-  return `AiToEarn ${envLabel} publish tool. ${description}`;
+  description = `AiToEarn ${envLabel} publish tool. ${description}`;
+  return appendMoneyUnitsNote(tool.name, description);
+}
+
+function appendMoneyUnitsNote(toolName: string, description: string): string {
+  if (!MONEY_RELATED_TOOL_NAMES.has(toolName)) {
+    return description;
+  }
+
+  return description.trim()
+    ? `${description}\n\n${MONEY_UNITS_NOTE}`
+    : MONEY_UNITS_NOTE;
 }
 
 function formatEnvironmentSummary(params: {

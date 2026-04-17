@@ -62,7 +62,24 @@ describe("runToolDiscoveryHelper", () => {
           {
             name: "remote_tool",
             description: "Remote",
-            inputSchema: { type: "object", properties: {} },
+            inputSchema: {
+              type: "object",
+              properties: {
+                time: {
+                  type: "array",
+                  items: [
+                    {
+                      type: "string",
+                      format: "date-time",
+                    },
+                    {
+                      type: "string",
+                      format: "date-time",
+                    },
+                  ],
+                },
+              },
+            },
           },
           {
             name: "remote_tool",
@@ -102,7 +119,20 @@ describe("runToolDiscoveryHelper", () => {
         {
           name: "remote_tool",
           description: "Remote",
-          inputSchema: { type: "object", properties: {} },
+          inputSchema: {
+            type: "object",
+            properties: {
+              time: {
+                type: "array",
+                items: {
+                  type: "string",
+                  format: "date-time",
+                },
+                minItems: 2,
+                maxItems: 2,
+              },
+            },
+          },
         },
       ],
       invalidCount: 1,

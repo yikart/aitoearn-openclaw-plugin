@@ -137,9 +137,26 @@ describe("loadToolDefinitionsSync", () => {
           status: "ok",
           tools: [
             {
-              name: "remote_tool",
+              name: "listMyPublishedTasks",
               description: "Remote",
-              inputSchema: { type: "object", properties: {} },
+              inputSchema: {
+                type: "object",
+                properties: {
+                  time: {
+                    type: "array",
+                    items: [
+                      {
+                        type: "string",
+                        format: "date-time",
+                      },
+                      {
+                        type: "string",
+                        format: "date-time",
+                      },
+                    ],
+                  },
+                },
+              },
             },
           ],
           invalidCount: 0,
@@ -181,15 +198,28 @@ describe("loadToolDefinitionsSync", () => {
     expect(result.source).toBe("remote");
     expect(result.tools).toEqual([
       {
-        name: "remote_tool",
+        name: "listMyPublishedTasks",
         description: "Remote",
-        inputSchema: { type: "object", properties: {} },
+        inputSchema: {
+          type: "object",
+          properties: {
+            time: {
+              type: "array",
+              items: {
+                type: "string",
+                format: "date-time",
+              },
+              minItems: 2,
+              maxItems: 2,
+            },
+          },
+        },
       },
     ]);
     expect(createWorker).toHaveBeenCalled();
     expect(writeFileSync).toHaveBeenCalledWith(
       "/tmp/openclaw-state/cache/aitoearn-tools.json.4321.12345.tmp",
-      expect.stringContaining('"remote_tool"'),
+      expect.stringContaining('"minItems": 2'),
       "utf8"
     );
     expect(renameSync).toHaveBeenCalledWith(

@@ -195,6 +195,20 @@ describe("AiToEarn OpenClaw Plugin", () => {
     expect(result.content[0].text).toContain("Base URL: https://aitoearn.ai/api");
   });
 
+  it("should append minor-unit notes to money-related tools", async () => {
+    setDiscoveredTools(["listTaskMarket", "getAffiliateSettlement", "test_tool"]);
+
+    await pluginEntry.register(mockApi as any);
+
+    expect(getRegisteredTool("listTaskMarket").description).toBe(
+      "Tool listTaskMarket\n\nMoney amounts are returned in minor units (such as cents). Use the response currency field when interpreting them. Points and other non-money counters stay in raw values."
+    );
+    expect(getRegisteredTool("getAffiliateSettlement").description).toBe(
+      "Tool getAffiliateSettlement\n\nMoney amounts are returned in minor units (such as cents). Use the response currency field when interpreting them. Points and other non-money counters stay in raw values."
+    );
+    expect(getRegisteredTool("test_tool").description).toBe("Tool test_tool");
+  });
+
   it("should resolve SecretRef API keys during synced tool execution", async () => {
     mockApi.pluginConfig.apiKey = {
       source: "env",
