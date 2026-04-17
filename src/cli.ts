@@ -39,12 +39,13 @@ interface CliDependencies {
   runSetupFlow: (options?: { showIntro?: boolean }) => Promise<SetupFlowResult>;
 }
 
-const HELP_TEXT = `Usage: npx -y @aitoearn/openclaw-plugin
+const HELP_TEXT = `Usage: npx -y @aitoearn/openclaw-plugin [upgrade]
 
 Bootstrap installer for the AiToEarn OpenClaw plugin.
 
 Examples:
-  npx -y @aitoearn/openclaw-plugin`;
+  npx -y @aitoearn/openclaw-plugin
+  npx -y @aitoearn/openclaw-plugin upgrade`;
 
 export async function runSetupCli(
   args: string[],
@@ -57,11 +58,16 @@ export async function runSetupCli(
 
   if (
     args.length > 1 ||
-    (args.length === 1 && args[0] !== "setup" && args[0] !== "install")
+    (args.length === 1 &&
+      args[0] !== "setup" &&
+      args[0] !== "install" &&
+      args[0] !== "upgrade")
   ) {
     console.error(HELP_TEXT);
     return 1;
   }
+
+  const command = args[0] ?? "install";
 
   deps.prompts.intro("AiToEarn OpenClaw Setup");
 
@@ -90,6 +96,13 @@ export async function runSetupCli(
       ? "AiToEarn plugin updated."
       : "AiToEarn plugin installed."
   );
+
+  if (command === "upgrade") {
+    deps.prompts.outro(
+      'Upgrade complete! Run "openclaw gateway restart" to apply.'
+    );
+    return 0;
+  }
 
   const setupResult = await deps.runSetupFlow({ showIntro: false });
   if (setupResult.status === "cancelled") {

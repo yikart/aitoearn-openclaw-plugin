@@ -131,6 +131,30 @@ describe("runSetupCli", () => {
     expect(writeConfig).not.toHaveBeenCalled();
   });
 
+  it("upgrades plugin files without rerunning setup", async () => {
+    installPlugin.mockResolvedValue({
+      replacedExisting: true,
+      targetDir: "/tmp/.openclaw/extensions/aitoearn",
+    });
+
+    const exitCode = await runSetupCli(["upgrade"], {
+      prompts,
+      loadPackageContext,
+      installPlugin,
+      readConfig,
+      writeConfig,
+      runSetupFlow,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(installPlugin).toHaveBeenCalledWith(packageContext);
+    expect(runSetupFlow).not.toHaveBeenCalled();
+    expect(writeConfig).not.toHaveBeenCalled();
+    expect(prompts.outro).toHaveBeenCalledWith(
+      'Upgrade complete! Run "openclaw gateway restart" to apply.'
+    );
+  });
+
   it("surfaces installation errors", async () => {
     installPlugin.mockRejectedValue(new Error("copy failed"));
 

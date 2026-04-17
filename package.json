@@ -1,6 +1,6 @@
 {
   "name": "@aitoearn/openclaw-plugin",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -44,13 +44,10 @@
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@sinclair/typebox": "^0.34.0",
     "json5": "^2.2.3",
+    "openclaw": ">=2026.3.24",
     "zod": "^3.24.0"
   },
-  "peerDependencies": {
-    "openclaw": ">=2026.3.24"
-  },
   "devDependencies": {
-    "openclaw": ">=2026.3.24",
     "typescript": "^5.4.0",
     "vitest": "^3.0.0"
   }

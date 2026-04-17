@@ -1,4 +1,6 @@
 import { workerData } from "node:worker_threads";
+import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
+import { getMcpClient } from "./mcp-client.js";
 import { runToolDiscoveryHelper } from "./tool-discovery-helper.js";
 
 interface ToolDiscoveryWorkerData {
@@ -28,10 +30,8 @@ async function main(): Promise<void> {
   const data = workerData as ToolDiscoveryWorkerData;
   const result = await runToolDiscoveryHelper(data.payload, {
     env: data.env ?? process.env,
-    getMcpClient: (await import("./mcp-client.js")).getMcpClient,
-    resolveConfiguredSecretInputString: (
-      await import("openclaw/plugin-sdk/config-runtime")
-    ).resolveConfiguredSecretInputString,
+    getMcpClient,
+    resolveConfiguredSecretInputString,
   });
 
   writeResult(result);

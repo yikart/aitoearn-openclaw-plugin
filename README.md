@@ -45,6 +45,12 @@ openclaw config set plugins.entries.aitoearn.config.apiKey \
 npx -y @aitoearn/openclaw-plugin
 ```
 
+升级插件：
+
+```bash
+npx -y @aitoearn/openclaw-plugin upgrade
+```
+
 完成配置后，重启 Gateway：
 
 ```bash
