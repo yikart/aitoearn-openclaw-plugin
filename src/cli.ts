@@ -17,6 +17,7 @@ import {
   runInteractiveSetupFlow,
   type SetupFlowResult,
 } from "./setup-flow.js";
+import { configSchema, PLUGIN_ID } from "./plugin-config.js";
 
 interface SpinnerApi {
   start(message: string): void;
@@ -67,7 +68,7 @@ export async function runSetupCli(
     return 1;
   }
 
-  const command = args[0] ?? "install";
+  const command = args[0] ?? "auto";
 
   deps.prompts.intro("AiToEarn OpenClaw Setup");
 
@@ -104,6 +105,23 @@ export async function runSetupCli(
     return 0;
   }
 
+  let currentConfig: Record<string, unknown> | null = null;
+  if (command === "auto" && installResult.replacedExisting) {
+    try {
+      currentConfig = await deps.readConfig();
+    } catch (error) {
+      deps.prompts.cancel(formatError(error));
+      return 1;
+    }
+
+    if (hasConfiguredPluginEntry(currentConfig)) {
+      deps.prompts.outro(
+        'Existing configuration detected. Upgrade complete! Run "openclaw gateway restart" to apply.'
+      );
+      return 0;
+    }
+  }
+
   const setupResult = await deps.runSetupFlow({ showIntro: false });
   if (setupResult.status === "cancelled") {
     return 0;
@@ -117,7 +135,7 @@ export async function runSetupCli(
   configSpinner.start("Writing OpenClaw configuration...");
 
   try {
-    const currentConfig = await deps.readConfig();
+    currentConfig ??= await deps.readConfig();
     const nextConfig = applySetupConfigToOpenClawConfig(
       currentConfig,
       setupResult.config
@@ -151,6 +169,32 @@ function createDefaultDependencies(): CliDependencies {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function hasConfiguredPluginEntry(config: Record<string, unknown>): boolean {
+  const plugins = asRecord(config.plugins);
+  const entries = asRecord(plugins?.entries);
+  const pluginEntry = asRecord(entries?.[PLUGIN_ID]);
+  const parsed = configSchema.safeParse(pluginEntry?.config ?? {});
+
+  if (!parsed.success) {
+    return false;
+  }
+
+  const apiKey = parsed.data.apiKey;
+  if (typeof apiKey === "string") {
+    return apiKey.trim().length > 0;
+  }
+
+  return isRecord(apiKey);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function main(): Promise<void> {

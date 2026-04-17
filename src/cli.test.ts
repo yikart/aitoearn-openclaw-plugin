@@ -115,6 +115,43 @@ describe("runSetupCli", () => {
     expect(prompts.outro).toHaveBeenCalled();
   });
 
+  it("auto-detects upgrade when existing plugin config is present", async () => {
+    installPlugin.mockResolvedValue({
+      replacedExisting: true,
+      targetDir: "/tmp/.openclaw/extensions/aitoearn",
+    });
+    readConfig.mockResolvedValue({
+      plugins: {
+        entries: {
+          aitoearn: {
+            enabled: true,
+            config: {
+              apiKey: "existing-api-key",
+              baseUrl: "https://aitoearn.ai/api",
+            },
+          },
+        },
+      },
+    });
+
+    const exitCode = await runSetupCli([], {
+      prompts,
+      loadPackageContext,
+      installPlugin,
+      readConfig,
+      writeConfig,
+      runSetupFlow,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(readConfig).toHaveBeenCalledTimes(1);
+    expect(runSetupFlow).not.toHaveBeenCalled();
+    expect(writeConfig).not.toHaveBeenCalled();
+    expect(prompts.outro).toHaveBeenCalledWith(
+      'Existing configuration detected. Upgrade complete! Run "openclaw gateway restart" to apply.'
+    );
+  });
+
   it("returns success when setup is cancelled after installation", async () => {
     runSetupFlow.mockResolvedValue({ status: "cancelled" });
 
@@ -129,6 +166,57 @@ describe("runSetupCli", () => {
 
     expect(exitCode).toBe(0);
     expect(writeConfig).not.toHaveBeenCalled();
+  });
+
+  it("continues into setup when existing installation has no saved apiKey", async () => {
+    installPlugin.mockResolvedValue({
+      replacedExisting: true,
+      targetDir: "/tmp/.openclaw/extensions/aitoearn",
+    });
+    readConfig.mockResolvedValue({
+      plugins: {
+        entries: {
+          aitoearn: {
+            enabled: true,
+            config: {},
+          },
+        },
+      },
+    });
+    runSetupFlow.mockResolvedValue({
+      status: "completed",
+      config: {
+        apiKey: "new-api-key",
+        baseUrl: "https://aitoearn.ai/api/",
+      },
+      toolCount: 3,
+    });
+
+    const exitCode = await runSetupCli([], {
+      prompts,
+      loadPackageContext,
+      installPlugin,
+      readConfig,
+      writeConfig,
+      runSetupFlow,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(readConfig).toHaveBeenCalledTimes(1);
+    expect(runSetupFlow).toHaveBeenCalled();
+    expect(writeConfig).toHaveBeenCalledWith({
+      plugins: {
+        entries: {
+          aitoearn: {
+            enabled: true,
+            config: {
+              apiKey: "new-api-key",
+              baseUrl: "https://aitoearn.ai/api",
+            },
+          },
+        },
+      },
+    });
   });
 
   it("upgrades plugin files without rerunning setup", async () => {

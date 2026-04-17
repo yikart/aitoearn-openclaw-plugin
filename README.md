@@ -11,9 +11,10 @@ npx -y @aitoearn/openclaw-plugin
 这个命令会自动：
 
 1. 将当前插件包安装到 OpenClaw 的扩展目录
-2. 引导输入 API Key 和环境
-3. 验证连通性
-4. 写入 `plugins.entries.aitoearn.config`
+2. 自动检测是否为已有安装
+3. 首次安装时引导输入 API Key 和环境
+4. 验证连通性
+5. 写入 `plugins.entries.aitoearn.config`
 
 ## 手动配置
 
@@ -50,6 +51,8 @@ npx -y @aitoearn/openclaw-plugin
 ```bash
 npx -y @aitoearn/openclaw-plugin upgrade
 ```
+
+再次执行默认命令时，如果检测到已有 `aitoearn` 配置，会自动按升级处理并跳过 setup。
 
 完成配置后，重启 Gateway：
 
