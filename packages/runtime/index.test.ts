@@ -195,16 +195,32 @@ describe("AiToEarn OpenClaw Plugin", () => {
     expect(result.content[0].text).toContain("Base URL: https://aitoearn.ai/api");
   });
 
-  it("should append minor-unit notes to money-related tools", async () => {
-    setDiscoveredTools(["listTaskMarket", "getAffiliateSettlement", "test_tool"]);
+  it("should append tool-specific minor-unit notes to money-related tools", async () => {
+    setDiscoveredTools([
+      "listTaskMarket",
+      "getTaskDetail",
+      "getAffiliateOverview",
+      "getAffiliateSettlement",
+      "acceptTask",
+      "test_tool",
+    ]);
 
     await pluginEntry.register(mockApi as any);
 
     expect(getRegisteredTool("listTaskMarket").description).toBe(
-      "Tool listTaskMarket\n\nExcept for points, money-related values such as balances, commissions, settlements, and rewards are returned in cents/fen-style minor units. Use the response currency field when interpreting them."
+      "Tool listTaskMarket\n\nExcept for points, money-related values are returned in cents/fen-style minor units. Always interpret them with the response currency, not as major currency units. For task rewards, treat reward: 100 with currency: USD as 1 USD, and reward: 50 with currency: USD as 0.5 USD."
+    );
+    expect(getRegisteredTool("getTaskDetail").description).toBe(
+      "Tool getTaskDetail\n\nExcept for points, money-related values are returned in cents/fen-style minor units. Always interpret them with the response currency, not as major currency units. For task rewards, treat reward: 100 with currency: USD as 1 USD, and reward: 50 with currency: USD as 0.5 USD."
+    );
+    expect(getRegisteredTool("getAffiliateOverview").description).toBe(
+      "Tool getAffiliateOverview\n\nExcept for points, money-related values are returned in cents/fen-style minor units. Always interpret them with the response currency, not as major currency units. For affiliate and settlement fields such as pending, settled, total, amount, and commissionAmount, treat 1234 with currency: USD as 12.34 USD."
     );
     expect(getRegisteredTool("getAffiliateSettlement").description).toBe(
-      "Tool getAffiliateSettlement\n\nExcept for points, money-related values such as balances, commissions, settlements, and rewards are returned in cents/fen-style minor units. Use the response currency field when interpreting them."
+      "Tool getAffiliateSettlement\n\nExcept for points, money-related values are returned in cents/fen-style minor units. Always interpret them with the response currency, not as major currency units. For affiliate and settlement fields such as pending, settled, total, amount, and commissionAmount, treat 1234 with currency: USD as 12.34 USD."
+    );
+    expect(getRegisteredTool("acceptTask").description).toBe(
+      "Tool acceptTask\n\nExcept for points, money-related values are returned in cents/fen-style minor units. Always interpret them with the response currency, not as major currency units. For deposit-style fields such as depositAmount, treat 500 with currency: USD as 5 USD."
     );
     expect(getRegisteredTool("test_tool").description).toBe("Tool test_tool");
   });

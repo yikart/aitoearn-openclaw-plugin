@@ -34,8 +34,26 @@ const MONEY_RELATED_TOOL_NAMES = new Set([
   "listTaskMarket",
 ]);
 
-const MONEY_UNITS_NOTE =
-  "Except for points, money-related values such as balances, commissions, settlements, and rewards are returned in cents/fen-style minor units. Use the response currency field when interpreting them.";
+const TASK_REWARD_TOOL_NAMES = new Set(["getTaskDetail", "listTaskMarket"]);
+const AFFILIATE_AMOUNT_TOOL_NAMES = new Set([
+  "getAffiliateOverview",
+  "getAffiliateSettlement",
+  "listAffiliateCommissions",
+]);
+const DEPOSIT_AMOUNT_TOOL_NAMES = new Set([
+  "acceptTask",
+  "getMySampleOrderDetail",
+  "listMySampleOrders",
+]);
+
+const GENERIC_MONEY_UNITS_NOTE =
+  "Except for points, money-related values are returned in cents/fen-style minor units. Always interpret them with the response currency, not as major currency units.";
+const TASK_REWARD_NOTE =
+  `${GENERIC_MONEY_UNITS_NOTE} For task rewards, treat reward: 100 with currency: USD as 1 USD, and reward: 50 with currency: USD as 0.5 USD.`;
+const AFFILIATE_AMOUNT_NOTE =
+  `${GENERIC_MONEY_UNITS_NOTE} For affiliate and settlement fields such as pending, settled, total, amount, and commissionAmount, treat 1234 with currency: USD as 12.34 USD.`;
+const DEPOSIT_AMOUNT_NOTE =
+  `${GENERIC_MONEY_UNITS_NOTE} For deposit-style fields such as depositAmount, treat 500 with currency: USD as 5 USD.`;
 
 export default definePluginEntry({
   id: PLUGIN_ID,
@@ -269,9 +287,26 @@ function appendMoneyUnitsNote(toolName: string, description: string): string {
     return description;
   }
 
+  const note = resolveMoneyUnitsNote(toolName);
   return description.trim()
-    ? `${description}\n\n${MONEY_UNITS_NOTE}`
-    : MONEY_UNITS_NOTE;
+    ? `${description}\n\n${note}`
+    : note;
+}
+
+function resolveMoneyUnitsNote(toolName: string): string {
+  if (TASK_REWARD_TOOL_NAMES.has(toolName)) {
+    return TASK_REWARD_NOTE;
+  }
+
+  if (AFFILIATE_AMOUNT_TOOL_NAMES.has(toolName)) {
+    return AFFILIATE_AMOUNT_NOTE;
+  }
+
+  if (DEPOSIT_AMOUNT_TOOL_NAMES.has(toolName)) {
+    return DEPOSIT_AMOUNT_NOTE;
+  }
+
+  return GENERIC_MONEY_UNITS_NOTE;
 }
 
 function formatEnvironmentSummary(params: {

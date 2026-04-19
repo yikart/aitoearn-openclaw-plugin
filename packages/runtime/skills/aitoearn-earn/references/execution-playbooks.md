@@ -186,3 +186,11 @@
 - `commissionAmount`
 
 除积分外，以上金额、收益、钱包、佣金、结算字段都按分为单位理解（即最小货币单位，如 cents / fen），并结合返回里的 `currency` 解释；不要擅自把它们当成主货币单位。
+
+输出时先换算再说：
+
+- `reward: 100` + `currency: USD` => `1 USD`
+- `reward: 50` + `currency: USD` => `0.5 USD`
+- `amount: 1234` + `currency: USD` => `12.34 USD`
+
+如果要同时保留原始值，写成“原始值 100，按分解释为 1 USD”，不要直接说“100 USD”。

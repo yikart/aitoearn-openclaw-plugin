@@ -53,4 +53,5 @@
 - 发布链路开始前先调 `getAiToEarnEnvironment`
 - 当前环境缺少某个 tool 时，要明确说“当前环境未提供该 MCP tool”
 - 除积分外，其余金额、收益、钱包、佣金、结算相关字段都按分为单位理解（即最小货币单位，如 cents / fen），并结合返回里的 `currency` 解释；不要擅自把它们当成主货币单位
+- 口头总结时必须先换算：例如 `reward: 100` + `currency: USD` 应解释为 `1 USD`
 - 具体执行时以当前已注册 tool 的 `description`、`inputSchema` 和环境结果为准

@@ -119,6 +119,9 @@ description: Use this skill when the user wants a lobster that actively looks fo
   - `applicationId`
   - `inviteCode`
 - 除积分外，其余金额、收益、钱包、佣金、结算相关字段都按分为单位理解（即最小货币单位，如 cents / fen），并结合返回里的 `currency` 解释；不要擅自把它们当成主货币单位
+- 向用户复述任务奖励、佣金或结算金额时，必须先换算后再说
+- 示例：`reward: 100` 且 `currency: USD`，必须说成 `1 USD`；`reward: 50` 且 `currency: USD`，必须说成 `0.5 USD`
+- 如果需要保留原始值，写成“原始值 100，按分解释为 1 USD”，不要只写“100 USD”
 
 ## 降级规则
 
@@ -141,4 +144,4 @@ description: Use this skill when the user wants a lobster that actively looks fo
 - 每次副作用调用后，明确告诉用户：
   - 刚刚执行了什么
   - 下一步应该查哪个主键
-- 解释金额时，明确提醒“除积分外，其余金额相关值都以分为单位（即最小货币单位），并结合 `currency` 理解”
+- 解释金额时，先换算成用户可读金额，再补一句“原始值按分为单位，并结合 `currency` 解释”
