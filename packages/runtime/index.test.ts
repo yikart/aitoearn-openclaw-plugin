@@ -201,10 +201,10 @@ describe("AiToEarn OpenClaw Plugin", () => {
     await pluginEntry.register(mockApi as any);
 
     expect(getRegisteredTool("listTaskMarket").description).toBe(
-      "Tool listTaskMarket\n\nMoney amounts are returned in minor units (such as cents). Use the response currency field when interpreting them. Points and other non-money counters stay in raw values."
+      "Tool listTaskMarket\n\nExcept for points, money-related values such as balances, commissions, settlements, and rewards are returned in cents/fen-style minor units. Use the response currency field when interpreting them."
     );
     expect(getRegisteredTool("getAffiliateSettlement").description).toBe(
-      "Tool getAffiliateSettlement\n\nMoney amounts are returned in minor units (such as cents). Use the response currency field when interpreting them. Points and other non-money counters stay in raw values."
+      "Tool getAffiliateSettlement\n\nExcept for points, money-related values such as balances, commissions, settlements, and rewards are returned in cents/fen-style minor units. Use the response currency field when interpreting them."
     );
     expect(getRegisteredTool("test_tool").description).toBe("Tool test_tool");
   });

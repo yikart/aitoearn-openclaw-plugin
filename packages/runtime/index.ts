@@ -35,7 +35,7 @@ const MONEY_RELATED_TOOL_NAMES = new Set([
 ]);
 
 const MONEY_UNITS_NOTE =
-  "Money amounts are returned in minor units (such as cents). Use the response currency field when interpreting them. Points and other non-money counters stay in raw values.";
+  "Except for points, money-related values such as balances, commissions, settlements, and rewards are returned in cents/fen-style minor units. Use the response currency field when interpreting them.";
 
 export default definePluginEntry({
   id: PLUGIN_ID,

@@ -118,7 +118,7 @@ description: Use this skill when the user wants a lobster that actively looks fo
   - `workLink`
   - `applicationId`
   - `inviteCode`
-- 金额字段按服务端返回的原始最小货币单位理解，并结合返回里的 `currency` 解释；积分和其他非金额计数保持原始值，不做按分换算
+- 除积分外，其余金额、收益、钱包、佣金、结算相关字段都按分为单位理解（即最小货币单位，如 cents / fen），并结合返回里的 `currency` 解释；不要擅自把它们当成主货币单位
 
 ## 降级规则
 
@@ -141,4 +141,4 @@ description: Use this skill when the user wants a lobster that actively looks fo
 - 每次副作用调用后，明确告诉用户：
   - 刚刚执行了什么
   - 下一步应该查哪个主键
-- 解释金额时，明确提醒“金额看最小货币单位和 `currency`，积分保持原始值”
+- 解释金额时，明确提醒“除积分外，其余金额相关值都以分为单位（即最小货币单位），并结合 `currency` 理解”

@@ -102,7 +102,7 @@ describe("openclaw-config helpers", () => {
         installs: {
           aitoearn: {
             source: "npm",
-            spec: "@aitoearn/openclaw-plugin@1.0.13",
+            spec: "@aitoearn/openclaw-plugin@1.0.14",
           },
         },
         entries: {
@@ -123,7 +123,7 @@ describe("openclaw-config helpers", () => {
 
     expect(getPluginInstallRecord(config)).toEqual({
       source: "npm",
-      spec: "@aitoearn/openclaw-plugin@1.0.13",
+      spec: "@aitoearn/openclaw-plugin@1.0.14",
     });
     expect(hasConfiguredPluginEntry(config)).toBe(true);
   });
