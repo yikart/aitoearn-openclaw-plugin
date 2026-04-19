@@ -9,16 +9,14 @@ const toolDiscoveryMock = vi.hoisted(() => ({
   loadToolDefinitionsSync: vi.fn(),
 }));
 
+const sharedMcpClientMock = vi.hoisted(() => ({
+  callMcpTool: vi.fn().mockResolvedValue({
+    content: [{ type: "text", text: "test result" }],
+  }),
+}));
+
 vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
-  Client: vi.fn().mockImplementation(() => ({
-    connect: vi.fn().mockResolvedValue(undefined),
-    listTools: vi.fn().mockResolvedValue({
-      tools: [],
-    }),
-    callTool: vi.fn().mockResolvedValue({
-      content: [{ type: "text", text: "test result" }],
-    }),
-  })),
+  Client: vi.fn().mockImplementation(() => mcpClientMock),
 }));
 
 vi.mock("@modelcontextprotocol/sdk/client/streamableHttp.js", () => ({
@@ -31,6 +29,7 @@ vi.mock("openclaw/plugin-sdk/plugin-entry", () => ({
 
 vi.mock("openclaw/plugin-sdk/config-runtime", () => configRuntimeMock);
 vi.mock("./src/tool-discovery.js", () => toolDiscoveryMock);
+vi.mock("../shared/src/mcp-client.js", () => sharedMcpClientMock);
 
 import pluginEntry from "./index.js";
 
@@ -90,6 +89,10 @@ describe("AiToEarn OpenClaw Plugin", () => {
     configRuntimeMock.resolveConfiguredSecretInputString.mockReset();
     configRuntimeMock.resolveConfiguredSecretInputString.mockResolvedValue({
       value: "test-api-key",
+    });
+    sharedMcpClientMock.callMcpTool.mockReset();
+    sharedMcpClientMock.callMcpTool.mockResolvedValue({
+      content: [{ type: "text", text: "test result" }],
     });
     toolDiscoveryMock.applySyncToolDiscoveryLogs.mockReset();
     toolDiscoveryMock.loadToolDefinitionsSync.mockReset();

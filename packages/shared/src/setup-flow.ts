@@ -1,5 +1,5 @@
 import * as p from "@clack/prompts";
-import { getMcpClient } from "./mcp-client.js";
+import { listMcpTools } from "./mcp-client.js";
 import {
   CHINA_BASE_URL,
   DEFAULT_BASE_URL,
@@ -143,8 +143,7 @@ export async function validateWithMcpClient(
   { success: true; toolCount: number } | { success: false; error: string }
 > {
   try {
-    const client = await getMcpClient(apiKey, normalizeBaseUrl(baseUrl));
-    const { tools } = await client.listTools();
+    const { tools } = await listMcpTools(apiKey, normalizeBaseUrl(baseUrl));
     return { success: true, toolCount: tools.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

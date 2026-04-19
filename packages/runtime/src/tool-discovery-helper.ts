@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { getMcpClient } from "../../shared/src/mcp-client.js";
+import { listMcpTools } from "../../shared/src/mcp-client.js";
 import {
   configSchema,
   normalizeBaseUrl,
@@ -22,10 +22,10 @@ interface ToolDiscoveryHelperDeps {
   resolveConfiguredSecretInputString: (
     params: Record<string, unknown>
   ) => Promise<{
-    value?: string;
-    unresolvedRefReason?: string;
+      value?: string;
+      unresolvedRefReason?: string;
   }>;
-  getMcpClient: typeof getMcpClient;
+  listMcpTools: typeof listMcpTools;
 }
 
 export async function runToolDiscoveryHelper(
@@ -58,11 +58,10 @@ export async function runToolDiscoveryHelper(
   }
 
   try {
-    const client = await deps.getMcpClient(
+    const result = await deps.listMcpTools(
       apiKey,
       normalizeBaseUrl(pluginConfig.baseUrl)
     );
-    const result = await client.listTools();
     const sanitized = sanitizeToolDefinitions(result.tools);
 
     return {
@@ -110,7 +109,7 @@ async function main(): Promise<void> {
 
   const result = await runToolDiscoveryHelper(payload, {
     env: process.env,
-    getMcpClient,
+    listMcpTools,
     resolveConfiguredSecretInputString:
       await loadResolveConfiguredSecretInputString(),
   });

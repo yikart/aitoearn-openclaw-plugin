@@ -3,11 +3,11 @@ import { runToolDiscoveryHelper } from "./tool-discovery-helper.js";
 
 describe("runToolDiscoveryHelper", () => {
   const resolveConfiguredSecretInputString = vi.fn();
-  const getMcpClient = vi.fn();
+  const listMcpTools = vi.fn();
 
   beforeEach(() => {
     resolveConfiguredSecretInputString.mockReset();
-    getMcpClient.mockReset();
+    listMcpTools.mockReset();
   });
 
   it("returns not_configured when apiKey is missing", async () => {
@@ -19,7 +19,7 @@ describe("runToolDiscoveryHelper", () => {
       {
         env: {},
         resolveConfiguredSecretInputString,
-        getMcpClient,
+        listMcpTools,
       }
     );
 
@@ -42,7 +42,7 @@ describe("runToolDiscoveryHelper", () => {
       {
         env: {},
         resolveConfiguredSecretInputString,
-        getMcpClient,
+        listMcpTools,
       }
     );
 
@@ -56,42 +56,40 @@ describe("runToolDiscoveryHelper", () => {
     resolveConfiguredSecretInputString.mockResolvedValue({
       value: "test-api-key",
     });
-    getMcpClient.mockResolvedValue({
-      listTools: vi.fn().mockResolvedValue({
-        tools: [
-          {
-            name: "remote_tool",
-            description: "Remote",
-            inputSchema: {
-              type: "object",
-              properties: {
-                time: {
-                  type: "array",
-                  items: [
-                    {
-                      type: "string",
-                      format: "date-time",
-                    },
-                    {
-                      type: "string",
-                      format: "date-time",
-                    },
-                  ],
-                },
+    listMcpTools.mockResolvedValue({
+      tools: [
+        {
+          name: "remote_tool",
+          description: "Remote",
+          inputSchema: {
+            type: "object",
+            properties: {
+              time: {
+                type: "array",
+                items: [
+                  {
+                    type: "string",
+                    format: "date-time",
+                  },
+                  {
+                    type: "string",
+                    format: "date-time",
+                  },
+                ],
               },
             },
           },
-          {
-            name: "remote_tool",
-            description: "Duplicate",
-            inputSchema: { type: "object", properties: {} },
-          },
-          {
-            name: "",
-            inputSchema: {},
-          },
-        ],
-      }),
+        },
+        {
+          name: "remote_tool",
+          description: "Duplicate",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "",
+          inputSchema: {},
+        },
+      ],
     });
 
     const result = await runToolDiscoveryHelper(
@@ -105,11 +103,11 @@ describe("runToolDiscoveryHelper", () => {
       {
         env: {},
         resolveConfiguredSecretInputString,
-        getMcpClient,
+        listMcpTools,
       }
     );
 
-    expect(getMcpClient).toHaveBeenCalledWith(
+    expect(listMcpTools).toHaveBeenCalledWith(
       "test-api-key",
       "https://aitoearn.ai/api"
     );

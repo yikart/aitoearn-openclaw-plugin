@@ -1,5 +1,5 @@
 import { workerData } from "node:worker_threads";
-import { getMcpClient } from "../../shared/src/mcp-client.js";
+import { listMcpTools } from "../../shared/src/mcp-client.js";
 import { runToolDiscoveryHelper } from "./tool-discovery-helper.js";
 
 interface ToolDiscoveryWorkerData {
@@ -40,7 +40,7 @@ async function main(): Promise<void> {
 
   const result = await runToolDiscoveryHelper(data.payload, {
     env: data.env ?? process.env,
-    getMcpClient,
+    listMcpTools,
     resolveConfiguredSecretInputString,
   });
 

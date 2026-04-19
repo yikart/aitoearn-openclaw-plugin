@@ -3,7 +3,7 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import * as p from "@clack/prompts";
-import { getMcpClient } from "../shared/src/mcp-client.js";
+import { callMcpTool } from "../shared/src/mcp-client.js";
 import {
   buildPluginEntryConfig,
   configSchema,
@@ -171,11 +171,12 @@ export default definePluginEntry({
             };
           }
 
-          const client = await getMcpClient(config.apiKey, config.baseUrl);
-          const result = (await client.callTool({
-            name: tool.name,
-            arguments: params as Record<string, unknown>,
-          })) as CallToolResult;
+          const result = (await callMcpTool(
+            config.apiKey,
+            config.baseUrl,
+            tool.name,
+            params as Record<string, unknown>
+          )) as CallToolResult;
           return {
             content: result.content.map((c) =>
               c.type === "text"
