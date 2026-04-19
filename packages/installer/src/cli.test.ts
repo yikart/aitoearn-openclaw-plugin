@@ -61,10 +61,10 @@ describe("runSetupCli", () => {
     runSetupFlow = vi.fn<() => Promise<SetupFlowResult>>();
   });
 
-  it("shows help for --help", async () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  it("runs the explicit install command through the same setup flow", async () => {
+    runSetupFlow.mockResolvedValue({ status: "cancelled" });
 
-    const exitCode = await runSetupCli(["--help"], {
+    const exitCode = await runSetupCli("install", {
       prompts,
       loadPackageContext,
       installPlugin,
@@ -74,10 +74,17 @@ describe("runSetupCli", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(logSpy).toHaveBeenCalled();
-    expect(loadPackageContext).not.toHaveBeenCalled();
-
-    logSpy.mockRestore();
+    expect(installPlugin).toHaveBeenCalledWith({
+      command: "install",
+      currentConfig: {
+        plugins: {
+          entries: {
+            existing: { enabled: true },
+          },
+        },
+      },
+      packageContext,
+    });
   });
 
   it("installs plugin and writes OpenClaw config", async () => {
@@ -90,7 +97,7 @@ describe("runSetupCli", () => {
       toolCount: 3,
     });
 
-    const exitCode = await runSetupCli([], {
+    const exitCode = await runSetupCli("auto", {
       prompts,
       loadPackageContext,
       installPlugin,
@@ -148,7 +155,7 @@ describe("runSetupCli", () => {
       },
     });
 
-    const exitCode = await runSetupCli([], {
+    const exitCode = await runSetupCli("auto", {
       prompts,
       loadPackageContext,
       installPlugin,
@@ -168,7 +175,7 @@ describe("runSetupCli", () => {
   it("returns success when setup is cancelled after install", async () => {
     runSetupFlow.mockResolvedValue({ status: "cancelled" });
 
-    const exitCode = await runSetupCli([], {
+    const exitCode = await runSetupCli("auto", {
       prompts,
       loadPackageContext,
       installPlugin,
@@ -220,7 +227,7 @@ describe("runSetupCli", () => {
       toolCount: 3,
     });
 
-    const exitCode = await runSetupCli([], {
+    const exitCode = await runSetupCli("auto", {
       prompts,
       loadPackageContext,
       installPlugin,
@@ -265,7 +272,7 @@ describe("runSetupCli", () => {
       },
     });
 
-    const exitCode = await runSetupCli(["upgrade"], {
+    const exitCode = await runSetupCli("upgrade", {
       prompts,
       loadPackageContext,
       installPlugin,
@@ -298,7 +305,7 @@ describe("runSetupCli", () => {
   it("surfaces installation errors", async () => {
     installPlugin.mockRejectedValue(new Error("install failed"));
 
-    const exitCode = await runSetupCli([], {
+    const exitCode = await runSetupCli("auto", {
       prompts,
       loadPackageContext,
       installPlugin,

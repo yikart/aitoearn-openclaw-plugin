@@ -41,36 +41,10 @@ interface CliDependencies {
   runSetupFlow: (options?: { showIntro?: boolean }) => Promise<SetupFlowResult>;
 }
 
-const HELP_TEXT = `Usage: npx -y @aitoearn/openclaw-plugin-cli [upgrade]
-
-Bootstrap installer for the AiToEarn OpenClaw plugin.
-
-Examples:
-  npx -y @aitoearn/openclaw-plugin-cli
-  npx -y @aitoearn/openclaw-plugin-cli upgrade`;
-
 export async function runSetupCli(
-  args: string[],
+  command: "auto" | "install" | "upgrade",
   deps: CliDependencies = createDefaultDependencies()
 ): Promise<number> {
-  if (args.includes("--help") || args.includes("-h")) {
-    console.log(HELP_TEXT);
-    return 0;
-  }
-
-  if (
-    args.length > 1 ||
-    (args.length === 1 &&
-      args[0] !== "setup" &&
-      args[0] !== "install" &&
-      args[0] !== "upgrade")
-  ) {
-    console.error(HELP_TEXT);
-    return 1;
-  }
-
-  const command = (args[0] ?? "auto") as "auto" | "install" | "upgrade";
-
   deps.prompts.intro("AiToEarn OpenClaw Setup");
 
   let packageContext: PackageContext;

@@ -1,11 +1,11 @@
 {
   "name": "@aitoearn/openclaw-plugin-cli",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "type": "module",
-  "main": "./dist/installer/src/cli.js",
-  "types": "./dist/installer/src/cli.d.ts",
+  "main": "./dist/installer/src/index.js",
+  "types": "./dist/installer/src/index.d.ts",
   "bin": {
-    "openclaw-plugin-cli": "dist/installer/src/bin.js"
+    "openclaw-plugin-cli": "dist/installer/src/index.js"
   },
   "files": [
     "dist",
@@ -25,6 +25,7 @@
   "dependencies": {
     "@clack/prompts": "^1.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
+    "commander": "^14.0.3",
     "json5": "^2.2.3",
     "zod": "^3.24.0"
   }
