@@ -21,6 +21,7 @@ import {
   applySyncToolDiscoveryLogs,
   loadToolDefinitionsSync,
 } from "./src/tool-discovery.js";
+import { sanitizeToolParams } from "./src/tool-params.js";
 import type { ToolDefinition } from "./src/tools.js";
 
 const MONEY_RELATED_TOOL_NAMES = new Set([
@@ -175,7 +176,10 @@ export default definePluginEntry({
             config.apiKey,
             config.baseUrl,
             tool.name,
-            params as Record<string, unknown>
+            sanitizeToolParams(
+              isRecord(params) ? params : {},
+              tool.inputSchema
+            )
           )) as CallToolResult;
           return {
             content: result.content.map((c) =>
@@ -265,6 +269,10 @@ function shouldRegisterTool(
   }
 
   return policyPlatformSet.has(publishPlatform);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function describeTool(

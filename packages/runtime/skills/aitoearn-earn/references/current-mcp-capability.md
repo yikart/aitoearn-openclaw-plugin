@@ -55,6 +55,8 @@
 - 当前 `acceptTask` 的默认理解是：公开市场接单主键为 `taskId`，其余字段按任务条件补齐
 - 不要因为 schema 里存在 `opportunityId` 或 `materialId`，就提前把它们当成默认阻断项
 - 所有条件性参数都按“没有真实值就不传”处理；不要传空字符串、空白占位值、空数组或全空对象
+- 所有发布工具都遵守同一条媒体规则：按真实内容类型互斥传参，不为满足 schema 混传图片和视频字段
+- 所有媒体 URL 字段都必须剔除占位值；`.invalid` 域名 URL 和 `https://placeholder.invalid/remove-me` 一律视为不存在，`imgUrlList` 没有真实图就整个不传
 - 除积分外，其余金额、收益、钱包、佣金、结算相关字段都按分为单位理解（即最小货币单位，如 cents / fen），并结合返回里的 `currency` 解释；不要擅自把它们当成主货币单位
 - 口头总结时必须先换算：例如 `reward: 100` + `currency: USD` 应解释为 `1 USD`
 - 具体执行时以当前已注册 tool 的 `description`、`inputSchema` 和环境结果为准

@@ -113,6 +113,10 @@ description: Use this skill when the user wants a lobster that actively looks fo
 - `accountId`、`opportunityId`、`materialId`、`shippingAddress`、`depositAmount`、`sampleMode` 等都属于条件性字段；只有任务详情明确要求，或实际调用报错明确指出缺少这些字段时才补
 - 所有参数都遵守同一条规则：没有真实值就不要传。空字符串、只含空格的字符串、空数组、以及像 `shippingAddress` 这样展开后全为空白值的空对象，都直接省略整个字段
 - 示例：不要传 `materialId: " "`、`opportunityId: " "`，也不要传内容全为空白的 `shippingAddress`
+- 所有发布参数都先按真实内容类型收敛：视频内容只传视频字段，图片内容只传图片字段；不要为了“凑 schema”同时传互斥的图片和视频字段
+- 所有媒体 URL 和 URL 数组字段都先做真实值过滤，再决定是否传参；空字符串、空白字符串、明显占位值、`.invalid` 域名 URL、以及 `https://placeholder.invalid/remove-me` 这类占位链接，都视为不存在
+- `imgUrlList` 必须特别严格处理：过滤后如果没有真实图片 URL，就整个字段都不要传；`imgUrlList: [\"https://placeholder.invalid/remove-me\"]` 视为“空字段”，不是“有一张图”
+- 不允许为了通过发布校验伪造媒体值：不要补默认图、不要补占位图、不要补占位 URL，也不要把占位 `imgUrlList` 和真实视频字段混传
 - 不要因为 schema 里存在某个字段，就提前告诉用户“现在卡在这个字段”
 - 绝不伪造这些字段：
   - `taskId`
@@ -135,6 +139,8 @@ description: Use this skill when the user wants a lobster that actively looks fo
 - 缺默认必填主键：停下来收集，不要用别的字段硬凑
 - 可选字段条件不明：先按 `taskId` 主线推进，不要把 `opportunityId` 或 `materialId` 提前说成阻断项
 - 组织 tool 参数时，没有真实值的字段直接删掉；不要把“占位空值”传给 agent
+- 发布字段在清洗占位值后如果为空，直接停止并明确说“当前缺少真实媒体 URL / 当前参数仍是占位值”，不要继续重试占位值方案
+- 视频发布如果只拿到真实视频素材，就不要再传 `imgUrlList`；图片发布如果 `imgUrlList` 过滤后为空，也不要伪造图片参数
 - 缺平台账号：停在准备阶段，不要伪造发布能力
 - 平台在策略里但没有注册对应工具：说明“当前未提供该 publish tool”，不要说成“平台不支持”
 - 平台不在当前环境支持矩阵里：不要尝试走 `publishPostTo*`

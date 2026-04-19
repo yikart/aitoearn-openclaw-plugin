@@ -73,9 +73,26 @@ Global 策略仅支持这些平台的 MCP 发布：
 - 先确认目标平台账号
 - 先调 `getAiToEarnEnvironment`
 - 先确认内容类型和素材
+- 先把媒体参数按内容类型收敛：视频只保留视频字段，图片只保留图片字段；不要为了满足 schema 混传互斥媒体字段
+- 先清洗所有媒体 URL 和 URL 数组字段，只保留真实值；空字符串、空白值、明显占位值、`.invalid` 域名 URL、以及 `https://placeholder.invalid/remove-me` 都直接删掉
+- `imgUrlList` 只要过滤后没有真实图片 URL，就整个字段都不要传；它不能用来塞占位图，也不能在视频发布里拿占位值凑必填
 - 必要时先查 `publishRestrictions`
 - 对 Bilibili 和 YouTube 这类需要分类的场景，先查分类工具
 - 任何“为了完成任务而发布”的场景，都要把 `userTaskId` 透传到 `publishPostTo*`
+
+## 媒体参数规则
+
+- 视频草稿、视频素材、或任务上下文明确是视频内容时：
+  - 只传真实视频字段
+  - 不传图片数组字段，除非 tool description 明确说该字段是视频封面且允许和视频并存
+  - 如果 `imgUrlList` 里只有占位值，例如 `https://placeholder.invalid/remove-me`，视为“没有图片”，不是“有封面”
+- 图片或图文内容时：
+  - 只传真实图片字段
+  - `imgUrlList` 过滤后为空，就视为缺少真实图片素材，停止发布
+- 如果 tool / schema 同时表现出“要图片”和“视频图片不能并传”的矛盾：
+  - 不要用占位 `imgUrlList` 重试
+  - 不要把视频和图片混传
+  - 直接说明这是工具侧参数冲突，当前不能靠伪造参数绕过
 
 ## 当前可用内容与发布支撑工具
 

@@ -39,11 +39,15 @@ interface RegisteredTool {
   execute: (...args: unknown[]) => Promise<unknown>;
 }
 
-function createTool(name: string, description = `Tool ${name}`) {
+function createTool(
+  name: string,
+  description = `Tool ${name}`,
+  inputSchema: Record<string, unknown> = { type: "object", properties: {} }
+) {
   return {
     name,
     description,
-    inputSchema: { type: "object", properties: {} },
+    inputSchema,
   };
 }
 
@@ -280,6 +284,113 @@ describe("AiToEarn OpenClaw Plugin", () => {
       content: [{ type: "text", text: "test result" }],
       details: null,
     });
+  });
+
+  it("should sanitize non-required placeholder values before calling MCP", async () => {
+    toolDiscoveryMock.loadToolDefinitionsSync.mockReturnValue({
+      source: "remote",
+      tools: [
+        createTool("test_tool", "Tool test_tool", {
+          type: "object",
+          required: ["workLink"],
+          properties: {
+            workLink: { type: "string" },
+            imgUrlList: {
+              type: "array",
+              items: { type: "string" },
+            },
+            shippingAddress: {
+              type: "object",
+              properties: {
+                address1: { type: "string" },
+                city: { type: "string" },
+              },
+            },
+            zero: { type: "number" },
+            flag: { type: "boolean" },
+          },
+        }),
+      ],
+      logs: [],
+    });
+
+    await pluginEntry.register(mockApi as any);
+
+    await getRegisteredTool("test_tool").execute("test-call-id", {
+      workLink: "https://real.example.com/work",
+      imgUrlList: [
+        "https://placeholder.invalid/remove-me",
+        "https://cdn.example.com/image.jpg",
+      ],
+      shippingAddress: {
+        address1: " ",
+        city: " ",
+      },
+      zero: 0,
+      flag: false,
+      note: "placeholder",
+    });
+
+    expect(sharedMcpClientMock.callMcpTool).toHaveBeenCalledWith(
+      "test-api-key",
+      "https://test.aitoearn.ai/api",
+      "test_tool",
+      {
+        workLink: "https://real.example.com/work",
+        imgUrlList: ["https://cdn.example.com/image.jpg"],
+        zero: 0,
+        flag: false,
+      }
+    );
+  });
+
+  it("should preserve placeholder values for required fields", async () => {
+    toolDiscoveryMock.loadToolDefinitionsSync.mockReturnValue({
+      source: "remote",
+      tools: [
+        createTool("test_tool", "Tool test_tool", {
+          type: "object",
+          required: ["imgUrlList", "payload"],
+          properties: {
+            imgUrlList: {
+              type: "array",
+              items: { type: "string" },
+            },
+            payload: {
+              type: "object",
+              required: ["workLink"],
+              properties: {
+                workLink: { type: "string" },
+                caption: { type: "string" },
+              },
+            },
+          },
+        }),
+      ],
+      logs: [],
+    });
+
+    await pluginEntry.register(mockApi as any);
+
+    await getRegisteredTool("test_tool").execute("test-call-id", {
+      imgUrlList: ["https://placeholder.invalid/remove-me"],
+      payload: {
+        workLink: "https://placeholder.invalid/remove-me",
+        caption: " ",
+      },
+    });
+
+    expect(sharedMcpClientMock.callMcpTool).toHaveBeenCalledWith(
+      "test-api-key",
+      "https://test.aitoearn.ai/api",
+      "test_tool",
+      {
+        imgUrlList: ["https://placeholder.invalid/remove-me"],
+        payload: {
+          workLink: "https://placeholder.invalid/remove-me",
+        },
+      }
+    );
   });
 
   it("should keep only China publish tools for China environment", async () => {

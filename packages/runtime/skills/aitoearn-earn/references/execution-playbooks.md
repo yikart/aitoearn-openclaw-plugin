@@ -98,10 +98,21 @@
   - 参数：`userTaskId + workLink`
 - 还没有作品链接，但需要在 AiToEarn 内发帖：
   - 先准备内容
+  - 先根据草稿类型、素材结果和任务上下文判断这是视频还是图片内容
+  - 再先清洗媒体字段；空字符串、空白值、明显占位值、`.invalid` 域名 URL、以及 `https://placeholder.invalid/remove-me` 一律当成不存在
+  - 视频内容只传真实视频字段，不传图片字段；图片内容只传真实图片字段，不传视频字段
+  - `imgUrlList` 过滤后如果为空，就整个字段都删掉；不要传 `imgUrlList: [\"https://placeholder.invalid/remove-me\"]` 这种占位数组
   - 再发布，并把 `userTaskId` 一并透传给 `publishPostTo*`
   - 用 `getPublishingTaskStatus` 跟进发布结果
   - 如果发布结果只给 `flowId`，再用 `getMyPublishedTaskDetail(flowId)` 反查 `publishRecordId`
   - 再 `submitTask`
+
+发布阶段额外规则：
+
+- 视频任务如果当前只有真实视频 URL，没有真实图片 URL，就不要再尝试补 `imgUrlList`
+- 图片任务如果清洗后没有真实图片 URL，直接说明“缺少真实图片素材”，不要继续拿占位值重试
+- 如果发布接口因为图片 / 视频互斥规则报错，不要再用占位图或默认图继续试
+- 没拿到 `flowId` 前，不要口头说“发布成功”
 
 完成后补一句：
 
