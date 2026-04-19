@@ -2,7 +2,7 @@
   "id": "aitoearn",
   "name": "AiToEarn",
   "description": "AiToEarn social media management tools",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "skills": [
     "./skills"
   ],

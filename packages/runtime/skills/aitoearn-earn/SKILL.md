@@ -46,7 +46,7 @@ description: Use this skill when the user wants a lobster that actively looks fo
 - 任何发布链路开始前，先调用 `getAiToEarnEnvironment`
 - 不要只凭平台名或当前工具名猜环境能力
 - 如果当前环境缺少某个 tool，明确说“当前环境未提供该 MCP tool”
-- 如果缺主键、缺账号、缺用户明确执行意图，先停下来收集信息
+- 如果缺默认必填主键（如 `taskId`、`userTaskId`）、缺账号、缺用户明确执行意图，先停下来收集信息
 
 ## 主动推进原则
 
@@ -108,6 +108,10 @@ description: Use this skill when the user wants a lobster that actively looks fo
   - `applyCampaign`
   - `submitCampaignContent`
 - 每次接任务前都必须先看 `getTaskDetail`
+- 公开市场创作者任务默认按 `listTaskMarket -> getTaskDetail -> acceptTask` 推进
+- 在这条主线里，`acceptTask` 默认主键是 `taskId`
+- `accountId`、`opportunityId`、`materialId`、`shippingAddress`、`depositAmount`、`sampleMode` 都是条件性字段；只有任务详情明确要求，或实际调用报错明确指出缺少这些字段时才补
+- 不要因为 schema 里存在某个字段，就提前告诉用户“现在卡在这个字段”
 - 绝不伪造这些字段：
   - `taskId`
   - `userTaskId`
@@ -126,7 +130,8 @@ description: Use this skill when the user wants a lobster that actively looks fo
 ## 降级规则
 
 - 缺工具：说明当前环境未提供该 MCP tool，不要假装能执行
-- 缺主键：停下来收集，不要用别的字段硬凑
+- 缺默认必填主键：停下来收集，不要用别的字段硬凑
+- 可选字段条件不明：先按 `taskId` 主线推进，不要把 `opportunityId` 或 `materialId` 提前说成阻断项
 - 缺平台账号：停在准备阶段，不要伪造发布能力
 - 平台在策略里但没有注册对应工具：说明“当前未提供该 publish tool”，不要说成“平台不支持”
 - 平台不在当前环境支持矩阵里：不要尝试走 `publishPostTo*`
@@ -139,8 +144,9 @@ description: Use this skill when the user wants a lobster that actively looks fo
   - 当前最优赚钱路径
   - 这笔钱怎么变成下一轮内容或机会
   - 下一步动作
-  - 需要补的主键或条件
+  - 已确认需要补的主键或条件
 - 推荐任务或候选路径时，保留稳定主键
+- 推荐公开市场任务时，默认把下一步写成“可按 `taskId` 尝试接单”；只有详情或实际报错明确要求时，才改写成“需补账号”“需补样品信息”或别的已确认条件
 - 每次副作用调用后，明确告诉用户：
   - 刚刚执行了什么
   - 下一步应该查哪个主键
