@@ -110,7 +110,9 @@ description: Use this skill when the user wants a lobster that actively looks fo
 - 每次接任务前都必须先看 `getTaskDetail`
 - 公开市场创作者任务默认按 `listTaskMarket -> getTaskDetail -> acceptTask` 推进
 - 在这条主线里，`acceptTask` 默认主键是 `taskId`
-- `accountId`、`opportunityId`、`materialId`、`shippingAddress`、`depositAmount`、`sampleMode` 都是条件性字段；只有任务详情明确要求，或实际调用报错明确指出缺少这些字段时才补
+- `accountId`、`opportunityId`、`materialId`、`shippingAddress`、`depositAmount`、`sampleMode` 等都属于条件性字段；只有任务详情明确要求，或实际调用报错明确指出缺少这些字段时才补
+- 所有参数都遵守同一条规则：没有真实值就不要传。空字符串、只含空格的字符串、空数组、以及像 `shippingAddress` 这样展开后全为空白值的空对象，都直接省略整个字段
+- 示例：不要传 `materialId: " "`、`opportunityId: " "`，也不要传内容全为空白的 `shippingAddress`
 - 不要因为 schema 里存在某个字段，就提前告诉用户“现在卡在这个字段”
 - 绝不伪造这些字段：
   - `taskId`
@@ -132,6 +134,7 @@ description: Use this skill when the user wants a lobster that actively looks fo
 - 缺工具：说明当前环境未提供该 MCP tool，不要假装能执行
 - 缺默认必填主键：停下来收集，不要用别的字段硬凑
 - 可选字段条件不明：先按 `taskId` 主线推进，不要把 `opportunityId` 或 `materialId` 提前说成阻断项
+- 组织 tool 参数时，没有真实值的字段直接删掉；不要把“占位空值”传给 agent
 - 缺平台账号：停在准备阶段，不要伪造发布能力
 - 平台在策略里但没有注册对应工具：说明“当前未提供该 publish tool”，不要说成“平台不支持”
 - 平台不在当前环境支持矩阵里：不要尝试走 `publishPostTo*`
