@@ -44,8 +44,10 @@ jobs:
       - name: Resolve package versions
         id: versions
         run: |
-          echo "runtime_version=$(node --input-type=module -e \"import fs from 'node:fs'; const pkg = JSON.parse(fs.readFileSync('./packages/runtime/package.json', 'utf8')); console.log(pkg.version);\")" >> "$GITHUB_OUTPUT"
-          echo "installer_version=$(node --input-type=module -e \"import fs from 'node:fs'; const pkg = JSON.parse(fs.readFileSync('./packages/installer/package.json', 'utf8')); console.log(pkg.version);\")" >> "$GITHUB_OUTPUT"
+          runtime_version=$(node -p "require('./packages/runtime/package.json').version")
+          installer_version=$(node -p "require('./packages/installer/package.json').version")
+          echo "runtime_version=$runtime_version" >> "$GITHUB_OUTPUT"
+          echo "installer_version=$installer_version" >> "$GITHUB_OUTPUT"
 
       - name: Check runtime package publish state
         id: runtime_publish_state
