@@ -1,9 +1,9 @@
 import { workerData } from "node:worker_threads";
-import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
 import { getMcpClient } from "../../shared/src/mcp-client.js";
 import { runToolDiscoveryHelper } from "./tool-discovery-helper.js";
 
 interface ToolDiscoveryWorkerData {
+  configRuntimeModuleSpecifier: string;
   payload: {
     config: Record<string, unknown>;
     pluginConfig: unknown;
@@ -28,6 +28,16 @@ void main().catch((error) => {
 
 async function main(): Promise<void> {
   const data = workerData as ToolDiscoveryWorkerData;
+  const configRuntimeModule = await import(data.configRuntimeModuleSpecifier);
+  const resolveConfiguredSecretInputString =
+    configRuntimeModule.resolveConfiguredSecretInputString;
+
+  if (typeof resolveConfiguredSecretInputString !== "function") {
+    throw new Error(
+      `Failed to load resolveConfiguredSecretInputString from ${data.configRuntimeModuleSpecifier}.`
+    );
+  }
+
   const result = await runToolDiscoveryHelper(data.payload, {
     env: data.env ?? process.env,
     getMcpClient,

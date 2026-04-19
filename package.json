@@ -1,7 +1,7 @@
 {
   "name": "aitoearn-openclaw-workspace",
   "private": true,
-  "version": "1.0.12",
+  "version": "1.0.13",
   "type": "module",
   "workspaces": [
     "packages/shared",
@@ -13,7 +13,8 @@
     "build": "npm run verify:versions && npm run build --workspaces --if-present",
     "test": "npm run verify:versions && npm run test --workspaces --if-present",
     "pack:check": "npm run verify:versions && npm pack --dry-run --workspace @aitoearn/openclaw-plugin && npm pack --dry-run --workspace @aitoearn/openclaw-plugin-cli",
-    "smoke:installer-cli": "node ./scripts/check-installer-cli-smoke.mjs"
+    "smoke:installer-cli": "node ./scripts/check-installer-cli-smoke.mjs",
+    "smoke:runtime-package": "node ./scripts/check-runtime-package-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

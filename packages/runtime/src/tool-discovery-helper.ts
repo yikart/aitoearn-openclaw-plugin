@@ -1,4 +1,3 @@
-import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { getMcpClient } from "../../shared/src/mcp-client.js";
@@ -20,17 +19,18 @@ export interface ToolDiscoveryHelperPayload {
 
 interface ToolDiscoveryHelperDeps {
   env: NodeJS.ProcessEnv;
-  resolveConfiguredSecretInputString: typeof resolveConfiguredSecretInputString;
+  resolveConfiguredSecretInputString: (
+    params: Record<string, unknown>
+  ) => Promise<{
+    value?: string;
+    unresolvedRefReason?: string;
+  }>;
   getMcpClient: typeof getMcpClient;
 }
 
 export async function runToolDiscoveryHelper(
   payload: ToolDiscoveryHelperPayload,
-  deps: ToolDiscoveryHelperDeps = {
-    env: process.env,
-    resolveConfiguredSecretInputString,
-    getMcpClient,
-  }
+  deps: ToolDiscoveryHelperDeps
 ): Promise<ToolDiscoveryHelperResult> {
   const parsed = configSchema.safeParse(payload.pluginConfig ?? {});
   const pluginConfig = (parsed.success ? parsed.data : {}) as PluginConfig;
@@ -108,8 +108,42 @@ async function main(): Promise<void> {
     return;
   }
 
-  const result = await runToolDiscoveryHelper(payload);
+  const result = await runToolDiscoveryHelper(payload, {
+    env: process.env,
+    getMcpClient,
+    resolveConfiguredSecretInputString:
+      await loadResolveConfiguredSecretInputString(),
+  });
   process.stdout.write(JSON.stringify(result));
+}
+
+async function loadResolveConfiguredSecretInputString(): Promise<
+  ToolDiscoveryHelperDeps["resolveConfiguredSecretInputString"]
+> {
+  const specifier = resolveConfigRuntimeModuleSpecifier();
+  const configRuntimeModule = await import(specifier);
+  const resolveConfiguredSecretInputString =
+    configRuntimeModule.resolveConfiguredSecretInputString;
+
+  if (typeof resolveConfiguredSecretInputString !== "function") {
+    throw new Error(
+      `Failed to load resolveConfiguredSecretInputString from ${specifier}.`
+    );
+  }
+
+  return resolveConfiguredSecretInputString as ToolDiscoveryHelperDeps["resolveConfiguredSecretInputString"];
+}
+
+function resolveConfigRuntimeModuleSpecifier(): string {
+  if (typeof import.meta.resolve === "function") {
+    try {
+      return import.meta.resolve("openclaw/plugin-sdk/config-runtime");
+    } catch {
+      return "openclaw/plugin-sdk/config-runtime";
+    }
+  }
+
+  return "openclaw/plugin-sdk/config-runtime";
 }
 
 const currentFilePath = fileURLToPath(import.meta.url);

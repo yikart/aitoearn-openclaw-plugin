@@ -9,6 +9,7 @@ import {
 describe("runToolDiscoveryWorkerSync", () => {
   it("returns the worker payload when the worker writes a result", () => {
     const stdout = runToolDiscoveryWorkerSync({
+      configRuntimeModuleSpecifier: "file:///tmp/config-runtime.js",
       createWorker: (_filename, options) => {
         const data = options.workerData as {
           resultBuffer: SharedArrayBuffer;
@@ -58,6 +59,7 @@ describe("runToolDiscoveryWorkerSync", () => {
   it("throws when the worker times out", () => {
     expect(() =>
       runToolDiscoveryWorkerSync({
+        configRuntimeModuleSpecifier: "file:///tmp/config-runtime.js",
         createWorker: () => ({
           terminate: async () => 0,
         }),
@@ -79,6 +81,7 @@ describe("runToolDiscoveryWorkerSync", () => {
   it("throws when the worker payload exceeds the shared buffer", () => {
     expect(() =>
       runToolDiscoveryWorkerSync({
+        configRuntimeModuleSpecifier: "file:///tmp/config-runtime.js",
         createWorker: (_filename, options) => {
           const data = options.workerData as {
             stateBuffer: SharedArrayBuffer;

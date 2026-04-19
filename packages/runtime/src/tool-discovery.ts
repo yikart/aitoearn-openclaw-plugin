@@ -44,6 +44,7 @@ interface WorkerLike {
 }
 
 interface ToolDiscoveryWorkerData {
+  configRuntimeModuleSpecifier: string;
   payload: ToolDiscoveryHelperPayload;
   env: NodeJS.ProcessEnv;
   resultBuffer: SharedArrayBuffer;
@@ -51,6 +52,7 @@ interface ToolDiscoveryWorkerData {
 }
 
 interface RunWorkerSyncOptions {
+  configRuntimeModuleSpecifier: string;
   createWorker: (filename: URL, options: WorkerOptions) => WorkerLike;
   env: NodeJS.ProcessEnv;
   payload: ToolDiscoveryHelperPayload;
@@ -60,6 +62,7 @@ interface RunWorkerSyncOptions {
 }
 
 interface SyncToolDiscoveryDeps {
+  configRuntimeModuleSpecifier: string;
   createWorker: (filename: URL, options: WorkerOptions) => WorkerLike;
   fs: ToolDiscoveryFs;
   now: () => number;
@@ -80,6 +83,8 @@ export interface LoadToolDefinitionsSyncParams {
 const DEFAULT_WORKER_PATH = new URL("./tool-discovery-worker.js", import.meta.url);
 const DEFAULT_RESULT_BUFFER_BYTES = 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_CONFIG_RUNTIME_MODULE_SPECIFIER =
+  resolveConfigRuntimeModuleSpecifier();
 
 export function loadToolDefinitionsSync(
   params: LoadToolDefinitionsSyncParams
@@ -204,6 +209,7 @@ export function runToolDiscoveryWorkerSync(
 
   try {
     const workerData: ToolDiscoveryWorkerData = {
+      configRuntimeModuleSpecifier: options.configRuntimeModuleSpecifier,
       payload: options.payload,
       env: options.env,
       resultBuffer: resultBuffer.buffer as SharedArrayBuffer,
@@ -261,6 +267,7 @@ function resolveDeps(
 
   return {
     createWorker: (filename, options) => new Worker(filename, options),
+    configRuntimeModuleSpecifier: DEFAULT_CONFIG_RUNTIME_MODULE_SPECIFIER,
     now: () => Date.now(),
     pid: process.pid,
     resultBufferBytes: DEFAULT_RESULT_BUFFER_BYTES,
@@ -280,6 +287,7 @@ function runToolDiscoveryHelperSync(
     const stdout = runToolDiscoveryWorkerSync({
       createWorker: deps.createWorker,
       env,
+      configRuntimeModuleSpecifier: deps.configRuntimeModuleSpecifier,
       payload,
       resultBufferBytes: deps.resultBufferBytes,
       timeoutMs: deps.timeoutMs,
@@ -362,6 +370,18 @@ function buildSkippedToolWarning(
   }
 
   return `${prefix} (${parts.join(", ")}).`;
+}
+
+function resolveConfigRuntimeModuleSpecifier(): string {
+  if (typeof import.meta.resolve === "function") {
+    try {
+      return import.meta.resolve("openclaw/plugin-sdk/config-runtime");
+    } catch {
+      return "openclaw/plugin-sdk/config-runtime";
+    }
+  }
+
+  return "openclaw/plugin-sdk/config-runtime";
 }
 
 function formatError(error: unknown): string {

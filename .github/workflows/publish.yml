@@ -44,6 +44,9 @@ jobs:
       - name: Smoke test installer CLI bin
         run: npm run smoke:installer-cli
 
+      - name: Smoke test runtime package install
+        run: npm run smoke:runtime-package
+
       - name: Resolve package versions
         id: versions
         run: |
