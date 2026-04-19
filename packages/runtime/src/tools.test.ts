@@ -77,6 +77,79 @@ describe("normalizeToolInputSchema", () => {
       },
     });
   });
+
+  it("converts legacy schema id to $id without touching property names", () => {
+    const schema = normalizeToolInputSchema({
+      id: "create-video-draft",
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+        },
+        payload: {
+          id: "video-payload",
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+            },
+            clips: {
+              type: "array",
+              prefixItems: [
+                {
+                  id: "clip-item",
+                  type: "string",
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(schema).toEqual({
+      $id: "create-video-draft",
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+        },
+        payload: {
+          $id: "video-payload",
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+            },
+            clips: {
+              type: "array",
+              prefixItems: [
+                {
+                  $id: "clip-item",
+                  type: "string",
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("keeps an existing $id and removes the legacy id keyword", () => {
+    const schema = normalizeToolInputSchema({
+      id: "legacy-schema-id",
+      $id: "canonical-schema-id",
+      type: "object",
+      properties: {},
+    });
+
+    expect(schema).toEqual({
+      $id: "canonical-schema-id",
+      type: "object",
+      properties: {},
+    });
+  });
 });
 
 describe("sanitizeToolDefinitions", () => {

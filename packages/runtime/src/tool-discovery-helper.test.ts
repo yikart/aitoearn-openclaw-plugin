@@ -62,8 +62,18 @@ describe("runToolDiscoveryHelper", () => {
           name: "remote_tool",
           description: "Remote",
           inputSchema: {
+            id: "create-video-draft",
             type: "object",
             properties: {
+              payload: {
+                id: "video-payload",
+                type: "object",
+                properties: {
+                  id: {
+                    type: "string",
+                  },
+                },
+              },
               time: {
                 type: "array",
                 items: [
@@ -118,8 +128,18 @@ describe("runToolDiscoveryHelper", () => {
           name: "remote_tool",
           description: "Remote",
           inputSchema: {
+            $id: "create-video-draft",
             type: "object",
             properties: {
+              payload: {
+                $id: "video-payload",
+                type: "object",
+                properties: {
+                  id: {
+                    type: "string",
+                  },
+                },
+              },
               time: {
                 type: "array",
                 items: {

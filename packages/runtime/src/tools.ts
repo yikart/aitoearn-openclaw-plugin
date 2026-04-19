@@ -53,7 +53,7 @@ const SINGLE_SCHEMA_KEYS = [
   "unevaluatedProperties",
 ] as const;
 
-const ARRAY_OF_SCHEMAS_KEYS = ["allOf", "anyOf", "oneOf"] as const;
+const ARRAY_OF_SCHEMAS_KEYS = ["allOf", "anyOf", "oneOf", "prefixItems"] as const;
 
 export interface ParsedToolSnapshotResult extends SanitizedToolsResult {
   snapshot: ToolSnapshot | null;
@@ -204,6 +204,7 @@ function normalizeJsonSchema(schema: JsonSchema): JsonSchema {
   }
 
   const normalized: Record<string, unknown> = { ...schema };
+  applyLegacySchemaIdCompatibility(normalized);
 
   for (const key of RECORD_OF_SCHEMAS_KEYS) {
     const value = normalized[key];
@@ -234,6 +235,18 @@ function normalizeJsonSchema(schema: JsonSchema): JsonSchema {
   }
 
   return normalized;
+}
+
+function applyLegacySchemaIdCompatibility(schema: Record<string, unknown>): void {
+  if (!Object.prototype.hasOwnProperty.call(schema, "id")) {
+    return;
+  }
+
+  if (typeof schema.id === "string" && !Object.prototype.hasOwnProperty.call(schema, "$id")) {
+    schema.$id = schema.id;
+  }
+
+  delete schema.id;
 }
 
 function normalizeSchemaRecordMap(

@@ -77,4 +77,59 @@ describe("mcp-client retry helpers", () => {
     expect(sdkClientMock.callTool).toHaveBeenCalledTimes(2);
     expect(sdkClientMock.clients).toHaveLength(2);
   });
+
+  it("retries callTool once after a retryable tool error result", async () => {
+    sdkClientMock.callTool
+      .mockResolvedValueOnce({
+        isError: true,
+        structuredContent: {
+          status: "error",
+          tool: "getallaccounts",
+          error: "Not connected",
+        },
+        content: [
+          {
+            type: "text",
+            text: '{"status":"error","tool":"getallaccounts","error":"Not connected"}',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        content: [{ type: "text", text: "ok" }],
+      });
+
+    const result = await callMcpTool(
+      "test-api-key",
+      "https://aitoearn.ai/api",
+      "getAllAccounts",
+      {}
+    );
+
+    expect(result).toEqual({
+      content: [{ type: "text", text: "ok" }],
+    });
+    expect(sdkClientMock.callTool).toHaveBeenCalledTimes(2);
+    expect(sdkClientMock.clients).toHaveLength(2);
+  });
+
+  it("does not retry non-connection tool error results", async () => {
+    sdkClientMock.callTool.mockResolvedValueOnce({
+      isError: true,
+      content: [{ type: "text", text: "Insufficient balance" }],
+    });
+
+    const result = await callMcpTool(
+      "test-api-key",
+      "https://aitoearn.ai/api",
+      "acceptTask",
+      {}
+    );
+
+    expect(result).toEqual({
+      isError: true,
+      content: [{ type: "text", text: "Insufficient balance" }],
+    });
+    expect(sdkClientMock.callTool).toHaveBeenCalledTimes(1);
+    expect(sdkClientMock.clients).toHaveLength(1);
+  });
 });
