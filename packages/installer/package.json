@@ -19,6 +19,7 @@
   "scripts": {
     "prebuild": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\"",
     "build": "tsc -p tsconfig.json",
+    "postbuild": "node --input-type=module -e \"import { chmodSync } from 'node:fs'; chmodSync('dist/installer/src/index.js', 0o755);\"",
     "prepack": "npm run build",
     "test": "vitest run --config ../../vitest.config.ts"
   },

@@ -40,15 +40,21 @@ program
     await runCommand("install");
   });
 
-void program.parseAsync(process.argv).catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  p.cancel(message);
-  process.exitCode = 1;
-});
+await main();
 
 async function runCommand(command: "auto" | "install" | "upgrade"): Promise<void> {
   const exitCode = await runSetupCli(command);
   if (exitCode !== 0) {
     process.exitCode = exitCode;
+  }
+}
+
+async function main(): Promise<void> {
+  try {
+    await program.parseAsync(process.argv);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    p.cancel(message);
+    process.exitCode = 1;
   }
 }

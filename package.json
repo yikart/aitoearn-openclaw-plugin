@@ -12,7 +12,8 @@
     "verify:versions": "node ./scripts/check-workspace-versions.mjs",
     "build": "npm run verify:versions && npm run build --workspaces --if-present",
     "test": "npm run verify:versions && npm run test --workspaces --if-present",
-    "pack:check": "npm run verify:versions && npm pack --dry-run --workspace @aitoearn/openclaw-plugin && npm pack --dry-run --workspace @aitoearn/openclaw-plugin-cli"
+    "pack:check": "npm run verify:versions && npm pack --dry-run --workspace @aitoearn/openclaw-plugin && npm pack --dry-run --workspace @aitoearn/openclaw-plugin-cli",
+    "smoke:installer-cli": "node ./scripts/check-installer-cli-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

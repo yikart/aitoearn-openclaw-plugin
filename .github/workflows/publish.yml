@@ -41,6 +41,9 @@ jobs:
       - name: Verify publish tarballs
         run: npm run pack:check
 
+      - name: Smoke test installer CLI bin
+        run: npm run smoke:installer-cli
+
       - name: Resolve package versions
         id: versions
         run: |
