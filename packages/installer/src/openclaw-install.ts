@@ -1,9 +1,8 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import { readFile, rename, rm, stat } from "node:fs/promises";
-import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   getPluginInstallRecord,
   readOpenClawConfig,
@@ -20,7 +19,6 @@ export interface PackageManifest {
 export interface PackageContext {
   rootDir: string;
   manifest: PackageManifest;
-  openclawCliPath: string;
   runtimeInstallSpec: string;
   runtimeTrackSpec: string;
 }
@@ -37,12 +35,17 @@ interface InstallPluginParams {
   packageContext: PackageContext;
 }
 
+interface RunOpenClawOptions {
+  env?: NodeJS.ProcessEnv;
+}
+
 interface InstallPluginDeps {
-  runOpenClaw: (cliPath: string, args: string[]) => Promise<void>;
+  runOpenClaw: (args: string[], options?: RunOpenClawOptions) => Promise<void>;
   env?: NodeJS.ProcessEnv;
   homedir?: () => string;
   now?: () => number;
   pathExists?: (pathname: string) => Promise<boolean>;
+  registries?: string[];
   readConfig?: typeof readOpenClawConfig;
   rename?: typeof rename;
   rm?: typeof rm;
@@ -50,12 +53,19 @@ interface InstallPluginDeps {
   writeConfig?: typeof writeOpenClawConfig;
 }
 
-const require = createRequire(import.meta.url);
+const DEFAULT_NPM_REGISTRIES = [
+  "https://registry.npmjs.org/",
+  "http://mirrors.cloud.tencent.com/npm/",
+];
+const OPENCLAW_COMMAND_NOT_FOUND = "OPENCLAW_COMMAND_NOT_FOUND";
 
 export async function loadPackageContext(
   fromFilePath: string
 ): Promise<PackageContext> {
-  const rootDir = await findPackageRoot(path.dirname(fromFilePath));
+  const resolvedPath = fromFilePath.startsWith("file:")
+    ? fileURLToPath(fromFilePath)
+    : fromFilePath;
+  const rootDir = await findPackageRoot(path.dirname(resolvedPath));
   const manifest = await readPackageManifest(rootDir);
   const version = manifest.version?.trim();
 
@@ -66,7 +76,6 @@ export async function loadPackageContext(
   return {
     rootDir,
     manifest,
-    openclawCliPath: resolveOpenClawCliPath(),
     runtimeInstallSpec: buildInstallSpec(version),
     runtimeTrackSpec: buildInstallSpec(),
   };
@@ -105,19 +114,24 @@ export async function installPluginWithOpenClaw(
   const env = deps.env ?? process.env;
   const homedir = deps.homedir ?? os.homedir;
   const readConfig = deps.readConfig ?? readOpenClawConfig;
+  const registries = normalizeRegistries(deps.registries);
   const legacyInstallDir = resolveLegacyInstallDir(env, homedir);
   const writeConfig = deps.writeConfig ?? writeOpenClawConfig;
+  const runWithRegistryFallback = async (args: string[]) => {
+    await runOpenClawWithRegistryFallback({
+      args,
+      env,
+      registries,
+      runOpenClaw: deps.runOpenClaw,
+    });
+  };
   const action = await resolveInstallAction(params.currentConfig, {
     legacyInstallDir,
     pathExists: deps.pathExists,
   });
 
   if (action === "update") {
-    await deps.runOpenClaw(params.packageContext.openclawCliPath, [
-      "plugins",
-      "update",
-      PLUGIN_ID,
-    ]);
+    await runWithRegistryFallback(["plugins", "update", PLUGIN_ID]);
     return { action };
   }
 
@@ -125,7 +139,7 @@ export async function installPluginWithOpenClaw(
     await migrateLegacyInstall({
       legacyInstallDir,
       packageContext: params.packageContext,
-      runOpenClaw: deps.runOpenClaw,
+      runOpenClaw: runWithRegistryFallback,
       pathExists: deps.pathExists ?? pathExists,
       readConfig,
       rename: deps.rename ?? rename,
@@ -139,7 +153,7 @@ export async function installPluginWithOpenClaw(
     return { action };
   }
 
-  await deps.runOpenClaw(params.packageContext.openclawCliPath, [
+  await runWithRegistryFallback([
     "plugins",
     "install",
     params.packageContext.runtimeInstallSpec,
@@ -160,17 +174,6 @@ export function resolveLegacyInstallDir(
   homedir: () => string = os.homedir
 ): string {
   return path.join(resolveOpenClawStateDir(env, homedir), "extensions", PLUGIN_ID);
-}
-
-function resolveOpenClawCliPath(): string {
-  const openclawMainPath = require.resolve("openclaw");
-  const cliPath = path.resolve(path.dirname(openclawMainPath), "..", "openclaw.mjs");
-
-  if (!existsSync(cliPath)) {
-    throw new Error(`Could not locate OpenClaw CLI entrypoint at ${cliPath}`);
-  }
-
-  return cliPath;
 }
 
 async function findPackageRoot(startDir: string): Promise<string> {
@@ -219,7 +222,7 @@ async function pathExists(pathname: string): Promise<boolean> {
 async function migrateLegacyInstall(params: {
   legacyInstallDir: string;
   packageContext: PackageContext;
-  runOpenClaw: (cliPath: string, args: string[]) => Promise<void>;
+  runOpenClaw: (args: string[]) => Promise<void>;
   pathExists: (pathname: string) => Promise<boolean>;
   readConfig: typeof readOpenClawConfig;
   rename: typeof rename;
@@ -235,7 +238,7 @@ async function migrateLegacyInstall(params: {
   await params.rename(params.legacyInstallDir, backupDir);
 
   try {
-    await params.runOpenClaw(params.packageContext.openclawCliPath, [
+    await params.runOpenClaw([
       "plugins",
       "install",
       params.packageContext.runtimeInstallSpec,
@@ -315,14 +318,64 @@ async function normalizeInstalledRuntimeSpec(params: {
   );
 }
 
-function runOpenClaw(cliPath: string, args: string[]): Promise<void> {
+async function runOpenClawWithRegistryFallback(params: {
+  args: string[];
+  env: NodeJS.ProcessEnv;
+  registries: string[];
+  runOpenClaw: (args: string[], options?: RunOpenClawOptions) => Promise<void>;
+}): Promise<void> {
+  let lastError: unknown = null;
+
+  for (const registry of params.registries) {
+    try {
+      await params.runOpenClaw(params.args, {
+        env: {
+          ...params.env,
+          npm_config_registry: registry,
+          NPM_CONFIG_REGISTRY: registry,
+        },
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (isOpenClawCommandNotFoundError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error(
+    `OpenClaw CLI command failed after trying registries ${params.registries.join(
+      ", "
+    )}: ${formatError(lastError)}`
+  );
+}
+
+function normalizeRegistries(registries?: string[]): string[] {
+  const values = (registries ?? DEFAULT_NPM_REGISTRIES).map((value) => value.trim());
+  const filtered = values.filter(Boolean);
+
+  return filtered.length > 0 ? [...new Set(filtered)] : [...DEFAULT_NPM_REGISTRIES];
+}
+
+function runOpenClaw(
+  args: string[],
+  options: RunOpenClawOptions = {}
+): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [cliPath, ...args], {
+    const child = spawn("openclaw", args, {
       stdio: "inherit",
-      env: process.env,
+      env: options.env ?? process.env,
+      shell: process.platform === "win32",
     });
 
     child.once("error", (error) => {
+      if (isMissingProcessError(error)) {
+        reject(createOpenClawCommandNotFoundError());
+        return;
+      }
+
       reject(new Error(`Failed to start OpenClaw CLI: ${formatError(error)}`));
     });
 
@@ -356,6 +409,32 @@ function isMissingFileError(error: unknown): boolean {
     error !== null &&
     "code" in error &&
     (error as { code?: string }).code === "ENOENT"
+  );
+}
+
+function isMissingProcessError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "ENOENT"
+  );
+}
+
+function createOpenClawCommandNotFoundError(): Error {
+  const error = new Error(
+    'Could not find the "openclaw" command in PATH. Install OpenClaw on the host first, then rerun this installer.'
+  ) as Error & { code?: string };
+  error.code = OPENCLAW_COMMAND_NOT_FOUND;
+  return error;
+}
+
+function isOpenClawCommandNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === OPENCLAW_COMMAND_NOT_FOUND
   );
 }
 

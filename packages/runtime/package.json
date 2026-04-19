@@ -1,12 +1,9 @@
 {
   "name": "@aitoearn/openclaw-plugin",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "type": "module",
   "main": "./dist/runtime/index.js",
   "types": "./dist/runtime/index.d.ts",
-  "bin": {
-    "openclaw-plugin": "dist/runtime/src/compat-installer-cli.js"
-  },
   "files": [
     "dist",
     "skills",
@@ -40,7 +37,6 @@
     "test": "vitest run --config ../../vitest.config.ts"
   },
   "dependencies": {
-    "@aitoearn/openclaw-plugin-cli": "1.0.10",
     "@clack/prompts": "^1.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@sinclair/typebox": "^0.34.0",

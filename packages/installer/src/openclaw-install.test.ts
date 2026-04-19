@@ -90,10 +90,9 @@ describe("installPluginWithOpenClaw", () => {
     rootDir: "/tmp/installer",
     manifest: {
       name: "@aitoearn/openclaw-plugin-cli",
-      version: "1.0.10",
+      version: "1.0.11",
     },
-    openclawCliPath: "/tmp/node_modules/openclaw/openclaw.mjs",
-    runtimeInstallSpec: "@aitoearn/openclaw-plugin@1.0.10",
+    runtimeInstallSpec: "@aitoearn/openclaw-plugin@1.0.11",
     runtimeTrackSpec: "@aitoearn/openclaw-plugin",
   };
 
@@ -104,8 +103,8 @@ describe("installPluginWithOpenClaw", () => {
         installs: {
           aitoearn: {
             source: "npm",
-            spec: "@aitoearn/openclaw-plugin@1.0.10",
-            resolvedSpec: "@aitoearn/openclaw-plugin@1.0.10",
+            spec: "@aitoearn/openclaw-plugin@1.0.11",
+            resolvedSpec: "@aitoearn/openclaw-plugin@1.0.11",
           },
         },
       },
@@ -130,11 +129,16 @@ describe("installPluginWithOpenClaw", () => {
     );
 
     expect(result).toEqual({ action: "install" });
-    expect(runOpenClaw).toHaveBeenCalledWith(packageContext.openclawCliPath, [
-      "plugins",
-      "install",
-      "@aitoearn/openclaw-plugin@1.0.10",
-    ]);
+    expect(runOpenClaw).toHaveBeenCalledWith(
+      ["plugins", "install", "@aitoearn/openclaw-plugin@1.0.11"],
+      {
+        env: expect.objectContaining({
+          OPENCLAW_STATE_DIR: "/tmp/.openclaw",
+          npm_config_registry: "https://registry.npmjs.org/",
+          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/",
+        }),
+      }
+    );
     expect(writeConfig).toHaveBeenCalledWith(
       {
         plugins: {
@@ -142,7 +146,7 @@ describe("installPluginWithOpenClaw", () => {
             aitoearn: {
               source: "npm",
               spec: "@aitoearn/openclaw-plugin",
-              resolvedSpec: "@aitoearn/openclaw-plugin@1.0.10",
+              resolvedSpec: "@aitoearn/openclaw-plugin@1.0.11",
             },
           },
         },
@@ -183,11 +187,16 @@ describe("installPluginWithOpenClaw", () => {
     );
 
     expect(result).toEqual({ action: "update" });
-    expect(runOpenClaw).toHaveBeenCalledWith(packageContext.openclawCliPath, [
-      "plugins",
-      "update",
-      "aitoearn",
-    ]);
+    expect(runOpenClaw).toHaveBeenCalledWith(
+      ["plugins", "update", "aitoearn"],
+      {
+        env: expect.objectContaining({
+          OPENCLAW_STATE_DIR: "/tmp/.openclaw",
+          npm_config_registry: "https://registry.npmjs.org/",
+          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/",
+        }),
+      }
+    );
     expect(writeConfig).not.toHaveBeenCalled();
   });
 
@@ -198,8 +207,8 @@ describe("installPluginWithOpenClaw", () => {
         installs: {
           aitoearn: {
             source: "npm",
-            spec: "@aitoearn/openclaw-plugin@1.0.10",
-            resolvedSpec: "@aitoearn/openclaw-plugin@1.0.10",
+            spec: "@aitoearn/openclaw-plugin@1.0.11",
+            resolvedSpec: "@aitoearn/openclaw-plugin@1.0.11",
           },
         },
       },
@@ -235,11 +244,16 @@ describe("installPluginWithOpenClaw", () => {
       "/tmp/.openclaw/extensions/aitoearn",
       "/tmp/.openclaw/extensions/aitoearn.legacy-backup-4321-12345"
     );
-    expect(runOpenClaw).toHaveBeenCalledWith(packageContext.openclawCliPath, [
-      "plugins",
-      "install",
-      "@aitoearn/openclaw-plugin@1.0.10",
-    ]);
+    expect(runOpenClaw).toHaveBeenCalledWith(
+      ["plugins", "install", "@aitoearn/openclaw-plugin@1.0.11"],
+      {
+        env: expect.objectContaining({
+          OPENCLAW_STATE_DIR: "/tmp/.openclaw",
+          npm_config_registry: "https://registry.npmjs.org/",
+          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/",
+        }),
+      }
+    );
     expect(rm).toHaveBeenCalledWith(
       "/tmp/.openclaw/extensions/aitoearn.legacy-backup-4321-12345",
       { recursive: true, force: true }
@@ -251,7 +265,7 @@ describe("installPluginWithOpenClaw", () => {
             aitoearn: {
               source: "npm",
               spec: "@aitoearn/openclaw-plugin",
-              resolvedSpec: "@aitoearn/openclaw-plugin@1.0.10",
+              resolvedSpec: "@aitoearn/openclaw-plugin@1.0.11",
             },
           },
         },
@@ -303,5 +317,86 @@ describe("installPluginWithOpenClaw", () => {
       "/tmp/.openclaw/extensions/aitoearn"
     );
     expect(rm).not.toHaveBeenCalled();
+  });
+
+  it("retries with the next registry when install fails once", async () => {
+    const runOpenClaw = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("first registry failed"))
+      .mockResolvedValueOnce(undefined);
+
+    const result = await installPluginWithOpenClaw(
+      {
+        command: "auto",
+        currentConfig: {},
+        packageContext,
+      },
+      {
+        runOpenClaw,
+        env: {
+          OPENCLAW_STATE_DIR: "/tmp/.openclaw",
+        },
+        pathExists: vi.fn().mockResolvedValue(false),
+        registries: ["https://registry.npmjs.org/", "http://mirrors.cloud.tencent.com/npm/"],
+        readConfig: vi.fn().mockResolvedValue({
+          plugins: {
+            installs: {
+              aitoearn: {
+                source: "npm",
+                spec: "@aitoearn/openclaw-plugin@1.0.11",
+                resolvedSpec: "@aitoearn/openclaw-plugin@1.0.11",
+              },
+            },
+          },
+        }),
+        writeConfig: vi.fn().mockResolvedValue("/tmp/.openclaw/openclaw.json"),
+      }
+    );
+
+    expect(result).toEqual({ action: "install" });
+    expect(runOpenClaw).toHaveBeenNthCalledWith(
+      1,
+      ["plugins", "install", "@aitoearn/openclaw-plugin@1.0.11"],
+      {
+        env: expect.objectContaining({
+          npm_config_registry: "https://registry.npmjs.org/",
+          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/",
+        }),
+      }
+    );
+    expect(runOpenClaw).toHaveBeenNthCalledWith(
+      2,
+      ["plugins", "install", "@aitoearn/openclaw-plugin@1.0.11"],
+      {
+        env: expect.objectContaining({
+          npm_config_registry: "http://mirrors.cloud.tencent.com/npm/",
+          NPM_CONFIG_REGISTRY: "http://mirrors.cloud.tencent.com/npm/",
+        }),
+      }
+    );
+  });
+
+  it("stops retrying when the host openclaw command is missing", async () => {
+    const missingCommandError = Object.assign(new Error("missing command"), {
+      code: "OPENCLAW_COMMAND_NOT_FOUND",
+    });
+    const runOpenClaw = vi.fn().mockRejectedValue(missingCommandError);
+
+    await expect(
+      installPluginWithOpenClaw(
+        {
+          command: "auto",
+          currentConfig: {},
+          packageContext,
+        },
+        {
+          runOpenClaw,
+          pathExists: vi.fn().mockResolvedValue(false),
+          registries: ["https://registry.npmjs.org/", "http://mirrors.cloud.tencent.com/npm/"],
+        }
+      )
+    ).rejects.toThrow("missing command");
+
+    expect(runOpenClaw).toHaveBeenCalledTimes(1);
   });
 });

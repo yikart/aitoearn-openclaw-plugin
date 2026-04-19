@@ -1,12 +1,6 @@
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SetupFlowResult } from "../../shared/src/setup-flow.js";
-import {
-  runSetupCli,
-  shouldRunCliMain,
-} from "./cli.js";
+import { runSetupCli } from "./cli.js";
 import type {
   InstallPluginResult,
   PackageContext,
@@ -41,7 +35,6 @@ describe("runSetupCli", () => {
         name: "@aitoearn/openclaw-plugin-cli",
         version: "1.2.3",
       },
-      openclawCliPath: "/tmp/node_modules/openclaw/openclaw.mjs",
       runtimeInstallSpec: "@aitoearn/openclaw-plugin@1.2.3",
       runtimeTrackSpec: "@aitoearn/openclaw-plugin",
     };
@@ -317,30 +310,5 @@ describe("runSetupCli", () => {
     expect(exitCode).toBe(1);
     expect(prompts.cancel).toHaveBeenCalledWith("install failed");
     expect(runSetupFlow).not.toHaveBeenCalled();
-  });
-});
-
-describe("shouldRunCliMain", () => {
-  it("matches the module path when invoked through a symlink", async () => {
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), "aitoearn-cli-test-"));
-    const cliFilePath = path.join(tempDir, "cli.js");
-    const linkPath = path.join(tempDir, "aitoearn-openclaw");
-
-    try {
-      await writeFile(cliFilePath, "#!/usr/bin/env node\n", "utf8");
-      await symlink(cliFilePath, linkPath);
-
-      expect(
-        shouldRunCliMain(linkPath, new URL(`file://${cliFilePath}`).href)
-      ).toBe(true);
-    } finally {
-      await rm(tempDir, { recursive: true, force: true });
-    }
-  });
-
-  it("returns false for a different entry path", () => {
-    expect(
-      shouldRunCliMain("/tmp/other-cli.js", new URL("file:///tmp/cli.js").href)
-    ).toBe(false);
   });
 });

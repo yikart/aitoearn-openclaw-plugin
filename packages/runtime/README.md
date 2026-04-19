@@ -8,14 +8,6 @@ AiToEarn 社交媒体管理工具的 OpenClaw 运行时插件包。
 npx -y @aitoearn/openclaw-plugin-cli
 ```
 
-兼容旧入口：
-
-```bash
-npx -y @aitoearn/openclaw-plugin
-```
-
-旧命令现在会转发到新的 installer 包。
-
 升级已通过 npm 安装的插件：
 
 ```bash

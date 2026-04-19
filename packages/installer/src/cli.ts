@@ -1,9 +1,4 @@
-#!/usr/bin/env node
-
 import * as p from "@clack/prompts";
-import { realpathSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   applySetupConfigToOpenClawConfig,
   hasConfiguredPluginEntry,
@@ -167,8 +162,7 @@ export async function runSetupCli(
 function createDefaultDependencies(): CliDependencies {
   return {
     prompts: p,
-    loadPackageContext: async () =>
-      loadPackageContext(fileURLToPath(import.meta.url)),
+    loadPackageContext: async () => loadPackageContext(import.meta.url),
     installPlugin: async (params) => installPluginWithOpenClaw(params),
     readConfig: async () => readOpenClawConfig(),
     writeConfig: async (config) => writeOpenClawConfig(config),
@@ -178,37 +172,4 @@ function createDefaultDependencies(): CliDependencies {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-async function main(): Promise<void> {
-  const exitCode = await runSetupCli(process.argv.slice(2));
-  if (exitCode !== 0) {
-    process.exitCode = exitCode;
-  }
-}
-
-export function shouldRunCliMain(
-  entryPath: string | undefined,
-  moduleUrl: string = import.meta.url
-): boolean {
-  if (!entryPath) {
-    return false;
-  }
-
-  const resolvedEntryPath = path.resolve(entryPath);
-  const currentFilePath = fileURLToPath(moduleUrl);
-
-  try {
-    return realpathSync(resolvedEntryPath) === realpathSync(currentFilePath);
-  } catch {
-    return currentFilePath === resolvedEntryPath;
-  }
-}
-
-if (shouldRunCliMain(process.argv[1])) {
-  void main().catch((error) => {
-    const message = error instanceof Error ? error.message : String(error);
-    p.cancel(message);
-    process.exitCode = 1;
-  });
 }
