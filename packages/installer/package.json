@@ -1,0 +1,32 @@
+{
+  "name": "@aitoearn/aitoearn-openclaw-cli",
+  "version": "1.0.8",
+  "type": "module",
+  "main": "./dist/installer/src/cli.js",
+  "types": "./dist/installer/src/cli.d.ts",
+  "bin": {
+    "aitoearn-openclaw": "dist/installer/src/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yikart/aitoearn-openclaw-plugin.git"
+  },
+  "scripts": {
+    "prebuild": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\"",
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "test": "vitest run --config ../../vitest.config.ts"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.1.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "json5": "^2.2.3",
+    "openclaw": ">=2026.3.24",
+    "zod": "^3.24.0"
+  }
+}

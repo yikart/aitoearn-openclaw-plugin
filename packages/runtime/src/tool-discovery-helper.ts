@@ -1,13 +1,13 @@
 import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { getMcpClient } from "./mcp-client.js";
+import { getMcpClient } from "../../shared/src/mcp-client.js";
 import {
   configSchema,
   normalizeBaseUrl,
   PLUGIN_ID,
   type PluginConfig,
-} from "./plugin-config.js";
+} from "../../shared/src/plugin-config.js";
 import {
   sanitizeToolDefinitions,
   type ToolDiscoveryHelperResult,

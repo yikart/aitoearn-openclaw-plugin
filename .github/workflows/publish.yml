@@ -5,6 +5,10 @@ on:
     types: [created]
   workflow_dispatch:
 
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -19,16 +23,65 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
+      - name: Verify version alignment
+        run: npm run verify:versions
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build packages
         run: npm run build
 
-      - name: Publish to npm
-        run: npm publish --provenance --access public
+      - name: Verify publish tarballs
+        run: npm run pack:check
+
+      - name: Resolve package versions
+        id: versions
+        run: |
+          echo "runtime_version=$(node --input-type=module -e \"import fs from 'node:fs'; const pkg = JSON.parse(fs.readFileSync('./packages/runtime/package.json', 'utf8')); console.log(pkg.version);\")" >> "$GITHUB_OUTPUT"
+          echo "installer_version=$(node --input-type=module -e \"import fs from 'node:fs'; const pkg = JSON.parse(fs.readFileSync('./packages/installer/package.json', 'utf8')); console.log(pkg.version);\")" >> "$GITHUB_OUTPUT"
+
+      - name: Check runtime package publish state
+        id: runtime_publish_state
+        run: |
+          if npm view "@aitoearn/openclaw-plugin@${{ steps.versions.outputs.runtime_version }}" version >/dev/null 2>&1; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check installer package publish state
+        id: installer_publish_state
+        run: |
+          if npm view "@aitoearn/aitoearn-openclaw-cli@${{ steps.versions.outputs.installer_version }}" version >/dev/null 2>&1; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish runtime package
+        if: steps.runtime_publish_state.outputs.should_publish == 'true'
+        run: npm publish --workspace @aitoearn/openclaw-plugin --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish installer package
+        if: steps.installer_publish_state.outputs.should_publish == 'true'
+        run: npm publish --workspace @aitoearn/aitoearn-openclaw-cli --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Report skipped packages
+        run: |
+          if [ "${{ steps.runtime_publish_state.outputs.should_publish }}" != "true" ]; then
+            echo "Runtime package @aitoearn/openclaw-plugin@${{ steps.versions.outputs.runtime_version }} is already published; skipping."
+          fi
+          if [ "${{ steps.installer_publish_state.outputs.should_publish }}" != "true" ]; then
+            echo "Installer package @aitoearn/aitoearn-openclaw-cli@${{ steps.versions.outputs.installer_version }} is already published; skipping."
+          fi

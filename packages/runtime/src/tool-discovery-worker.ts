@@ -1,6 +1,6 @@
 import { workerData } from "node:worker_threads";
 import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
-import { getMcpClient } from "./mcp-client.js";
+import { getMcpClient } from "../../shared/src/mcp-client.js";
 import { runToolDiscoveryHelper } from "./tool-discovery-helper.js";
 
 interface ToolDiscoveryWorkerData {

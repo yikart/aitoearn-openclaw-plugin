@@ -6,18 +6,20 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   applySetupConfigToOpenClawConfig,
-  installPackageIntoOpenClaw,
-  loadPackageContext,
+  hasConfiguredPluginEntry,
   readOpenClawConfig,
   writeOpenClawConfig,
-  type PackageContext,
-  type PackageInstallResult,
-} from "./openclaw-bootstrap.js";
+} from "../../shared/src/openclaw-config.js";
 import {
   runInteractiveSetupFlow,
   type SetupFlowResult,
-} from "./setup-flow.js";
-import { configSchema, PLUGIN_ID } from "./plugin-config.js";
+} from "../../shared/src/setup-flow.js";
+import {
+  installPluginWithOpenClaw,
+  loadPackageContext,
+  type InstallPluginResult,
+  type PackageContext,
+} from "./openclaw-install.js";
 
 interface SpinnerApi {
   start(message: string): void;
@@ -34,19 +36,23 @@ interface PromptApi {
 interface CliDependencies {
   prompts: PromptApi;
   loadPackageContext: () => Promise<PackageContext>;
-  installPlugin: (packageContext: PackageContext) => Promise<PackageInstallResult>;
+  installPlugin: (params: {
+    command: "auto" | "install" | "upgrade";
+    currentConfig: Record<string, unknown>;
+    packageContext: PackageContext;
+  }) => Promise<InstallPluginResult>;
   readConfig: () => Promise<Record<string, unknown>>;
   writeConfig: (config: Record<string, unknown>) => Promise<string>;
   runSetupFlow: (options?: { showIntro?: boolean }) => Promise<SetupFlowResult>;
 }
 
-const HELP_TEXT = `Usage: npx -y @aitoearn/openclaw-plugin [upgrade]
+const HELP_TEXT = `Usage: npx -y @aitoearn/aitoearn-openclaw-cli [upgrade]
 
 Bootstrap installer for the AiToEarn OpenClaw plugin.
 
 Examples:
-  npx -y @aitoearn/openclaw-plugin
-  npx -y @aitoearn/openclaw-plugin upgrade`;
+  npx -y @aitoearn/aitoearn-openclaw-cli
+  npx -y @aitoearn/aitoearn-openclaw-cli upgrade`;
 
 export async function runSetupCli(
   args: string[],
@@ -68,7 +74,7 @@ export async function runSetupCli(
     return 1;
   }
 
-  const command = args[0] ?? "auto";
+  const command = (args[0] ?? "auto") as "auto" | "install" | "upgrade";
 
   deps.prompts.intro("AiToEarn OpenClaw Setup");
 
@@ -80,12 +86,24 @@ export async function runSetupCli(
     return 1;
   }
 
-  const installSpinner = deps.prompts.spinner();
-  installSpinner.start("Installing AiToEarn plugin files...");
-
-  let installResult: PackageInstallResult;
+  let preInstallConfig: Record<string, unknown>;
   try {
-    installResult = await deps.installPlugin(packageContext);
+    preInstallConfig = await deps.readConfig();
+  } catch (error) {
+    deps.prompts.cancel(formatError(error));
+    return 1;
+  }
+
+  const installSpinner = deps.prompts.spinner();
+  installSpinner.start("Installing AiToEarn plugin via OpenClaw...");
+
+  let installResult: InstallPluginResult;
+  try {
+    installResult = await deps.installPlugin({
+      command,
+      currentConfig: preInstallConfig,
+      packageContext,
+    });
   } catch (error) {
     installSpinner.stop("Plugin installation failed.");
     deps.prompts.cancel(formatError(error));
@@ -93,33 +111,25 @@ export async function runSetupCli(
   }
 
   installSpinner.stop(
-    installResult.replacedExisting
+    installResult.action === "update"
       ? "AiToEarn plugin updated."
       : "AiToEarn plugin installed."
   );
 
   if (command === "upgrade") {
     deps.prompts.outro(
-      'Upgrade complete! Run "openclaw gateway restart" to apply.'
+      installResult.action === "update"
+        ? 'Upgrade complete! Run "openclaw gateway restart" to apply.'
+        : 'Install complete! Run "openclaw gateway restart" to apply.'
     );
     return 0;
   }
 
-  let currentConfig: Record<string, unknown> | null = null;
-  if (command === "auto" && installResult.replacedExisting) {
-    try {
-      currentConfig = await deps.readConfig();
-    } catch (error) {
-      deps.prompts.cancel(formatError(error));
-      return 1;
-    }
-
-    if (hasConfiguredPluginEntry(currentConfig)) {
-      deps.prompts.outro(
-        'Existing configuration detected. Upgrade complete! Run "openclaw gateway restart" to apply.'
-      );
-      return 0;
-    }
+  if (command === "auto" && hasConfiguredPluginEntry(preInstallConfig)) {
+    deps.prompts.outro(
+      'Existing configuration detected. Upgrade complete! Run "openclaw gateway restart" to apply.'
+    );
+    return 0;
   }
 
   const setupResult = await deps.runSetupFlow({ showIntro: false });
@@ -135,7 +145,7 @@ export async function runSetupCli(
   configSpinner.start("Writing OpenClaw configuration...");
 
   try {
-    currentConfig ??= await deps.readConfig();
+    const currentConfig = await deps.readConfig();
     const nextConfig = applySetupConfigToOpenClawConfig(
       currentConfig,
       setupResult.config
@@ -159,8 +169,7 @@ function createDefaultDependencies(): CliDependencies {
     prompts: p,
     loadPackageContext: async () =>
       loadPackageContext(fileURLToPath(import.meta.url)),
-    installPlugin: async (packageContext) =>
-      installPackageIntoOpenClaw(packageContext),
+    installPlugin: async (params) => installPluginWithOpenClaw(params),
     readConfig: async () => readOpenClawConfig(),
     writeConfig: async (config) => writeOpenClawConfig(config),
     runSetupFlow: runInteractiveSetupFlow,
@@ -169,32 +178,6 @@ function createDefaultDependencies(): CliDependencies {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function hasConfiguredPluginEntry(config: Record<string, unknown>): boolean {
-  const plugins = asRecord(config.plugins);
-  const entries = asRecord(plugins?.entries);
-  const pluginEntry = asRecord(entries?.[PLUGIN_ID]);
-  const parsed = configSchema.safeParse(pluginEntry?.config ?? {});
-
-  if (!parsed.success) {
-    return false;
-  }
-
-  const apiKey = parsed.data.apiKey;
-  if (typeof apiKey === "string") {
-    return apiKey.trim().length > 0;
-  }
-
-  return isRecord(apiKey);
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return isRecord(value) ? value : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function main(): Promise<void> {

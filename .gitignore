@@ -1,5 +1,8 @@
 node_modules/
 dist/
+packages/*/dist/
+*.tgz
 *.openapi.yaml
+docs/
 .claude/
-.idea
+.idea/

@@ -2,12 +2,15 @@ import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { runSetupCli, shouldRunCliMain } from "./cli.js";
+import type { SetupFlowResult } from "../../shared/src/setup-flow.js";
+import {
+  runSetupCli,
+  shouldRunCliMain,
+} from "./cli.js";
 import type {
+  InstallPluginResult,
   PackageContext,
-  PackageInstallResult,
-} from "./openclaw-bootstrap.js";
-import type { SetupFlowResult } from "./setup-flow.js";
+} from "./openclaw-install.js";
 
 function createPromptApi() {
   return {
@@ -33,18 +36,26 @@ describe("runSetupCli", () => {
   beforeEach(() => {
     prompts = createPromptApi();
     packageContext = {
-      rootDir: "/tmp/aitoearn-package",
+      rootDir: "/tmp/aitoearn-installer",
       manifest: {
-        name: "@aitoearn/openclaw-plugin",
+        name: "@aitoearn/aitoearn-openclaw-cli",
         version: "1.2.3",
       },
+      openclawCliPath: "/tmp/node_modules/openclaw/openclaw.mjs",
+      runtimeInstallSpec: "@aitoearn/openclaw-plugin@1.2.3",
+      runtimeTrackSpec: "@aitoearn/openclaw-plugin",
     };
     loadPackageContext = vi.fn().mockResolvedValue(packageContext);
     installPlugin = vi
-      .fn<(_: PackageContext) => Promise<PackageInstallResult>>()
+      .fn<
+        (_: {
+          command: "auto" | "install" | "upgrade";
+          currentConfig: Record<string, unknown>;
+          packageContext: PackageContext;
+        }) => Promise<InstallPluginResult>
+      >()
       .mockResolvedValue({
-        replacedExisting: false,
-        targetDir: "/tmp/.openclaw/extensions/aitoearn",
+        action: "install",
       });
     readConfig = vi.fn().mockResolvedValue({
       plugins: {
@@ -76,7 +87,7 @@ describe("runSetupCli", () => {
     logSpy.mockRestore();
   });
 
-  it("installs plugin files and writes OpenClaw config", async () => {
+  it("installs plugin and writes OpenClaw config", async () => {
     runSetupFlow.mockResolvedValue({
       status: "completed",
       config: {
@@ -96,8 +107,17 @@ describe("runSetupCli", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(loadPackageContext).toHaveBeenCalledTimes(1);
-    expect(installPlugin).toHaveBeenCalledWith(packageContext);
+    expect(installPlugin).toHaveBeenCalledWith({
+      command: "auto",
+      currentConfig: {
+        plugins: {
+          entries: {
+            existing: { enabled: true },
+          },
+        },
+      },
+      packageContext,
+    });
     expect(writeConfig).toHaveBeenCalledWith({
       plugins: {
         entries: {
@@ -112,13 +132,14 @@ describe("runSetupCli", () => {
         },
       },
     });
-    expect(prompts.outro).toHaveBeenCalled();
+    expect(prompts.outro).toHaveBeenCalledWith(
+      'Configuration saved! Run "openclaw gateway restart" to apply.'
+    );
   });
 
-  it("auto-detects upgrade when existing plugin config is present", async () => {
+  it("auto-skips setup when valid configuration already exists", async () => {
     installPlugin.mockResolvedValue({
-      replacedExisting: true,
-      targetDir: "/tmp/.openclaw/extensions/aitoearn",
+      action: "update",
     });
     readConfig.mockResolvedValue({
       plugins: {
@@ -144,7 +165,6 @@ describe("runSetupCli", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(readConfig).toHaveBeenCalledTimes(1);
     expect(runSetupFlow).not.toHaveBeenCalled();
     expect(writeConfig).not.toHaveBeenCalled();
     expect(prompts.outro).toHaveBeenCalledWith(
@@ -152,7 +172,7 @@ describe("runSetupCli", () => {
     );
   });
 
-  it("returns success when setup is cancelled after installation", async () => {
+  it("returns success when setup is cancelled after install", async () => {
     runSetupFlow.mockResolvedValue({ status: "cancelled" });
 
     const exitCode = await runSetupCli([], {
@@ -168,21 +188,36 @@ describe("runSetupCli", () => {
     expect(writeConfig).not.toHaveBeenCalled();
   });
 
-  it("continues into setup when existing installation has no saved apiKey", async () => {
+  it("continues into setup when existing config is incomplete", async () => {
     installPlugin.mockResolvedValue({
-      replacedExisting: true,
-      targetDir: "/tmp/.openclaw/extensions/aitoearn",
+      action: "update",
     });
-    readConfig.mockResolvedValue({
-      plugins: {
-        entries: {
-          aitoearn: {
-            enabled: true,
-            config: {},
+    readConfig
+      .mockResolvedValueOnce({
+        plugins: {
+          entries: {
+            aitoearn: {
+              enabled: true,
+              config: {},
+            },
           },
         },
-      },
-    });
+      })
+      .mockResolvedValueOnce({
+        plugins: {
+          installs: {
+            aitoearn: {
+              source: "npm",
+            },
+          },
+          entries: {
+            aitoearn: {
+              enabled: true,
+              config: {},
+            },
+          },
+        },
+      });
     runSetupFlow.mockResolvedValue({
       status: "completed",
       config: {
@@ -202,10 +237,14 @@ describe("runSetupCli", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(readConfig).toHaveBeenCalledTimes(1);
-    expect(runSetupFlow).toHaveBeenCalled();
+    expect(readConfig).toHaveBeenCalledTimes(2);
     expect(writeConfig).toHaveBeenCalledWith({
       plugins: {
+        installs: {
+          aitoearn: {
+            source: "npm",
+          },
+        },
         entries: {
           aitoearn: {
             enabled: true,
@@ -219,10 +258,18 @@ describe("runSetupCli", () => {
     });
   });
 
-  it("upgrades plugin files without rerunning setup", async () => {
+  it("uses OpenClaw upgrade flow without rerunning setup", async () => {
     installPlugin.mockResolvedValue({
-      replacedExisting: true,
-      targetDir: "/tmp/.openclaw/extensions/aitoearn",
+      action: "update",
+    });
+    readConfig.mockResolvedValue({
+      plugins: {
+        installs: {
+          aitoearn: {
+            source: "npm",
+          },
+        },
+      },
     });
 
     const exitCode = await runSetupCli(["upgrade"], {
@@ -235,7 +282,19 @@ describe("runSetupCli", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(installPlugin).toHaveBeenCalledWith(packageContext);
+    expect(installPlugin).toHaveBeenCalledWith({
+      command: "upgrade",
+      currentConfig: {
+        plugins: {
+          installs: {
+            aitoearn: {
+              source: "npm",
+            },
+          },
+        },
+      },
+      packageContext,
+    });
     expect(runSetupFlow).not.toHaveBeenCalled();
     expect(writeConfig).not.toHaveBeenCalled();
     expect(prompts.outro).toHaveBeenCalledWith(
@@ -244,7 +303,7 @@ describe("runSetupCli", () => {
   });
 
   it("surfaces installation errors", async () => {
-    installPlugin.mockRejectedValue(new Error("copy failed"));
+    installPlugin.mockRejectedValue(new Error("install failed"));
 
     const exitCode = await runSetupCli([], {
       prompts,
@@ -256,7 +315,7 @@ describe("runSetupCli", () => {
     });
 
     expect(exitCode).toBe(1);
-    expect(prompts.cancel).toHaveBeenCalledWith("copy failed");
+    expect(prompts.cancel).toHaveBeenCalledWith("install failed");
     expect(runSetupFlow).not.toHaveBeenCalled();
   });
 });
@@ -265,7 +324,7 @@ describe("shouldRunCliMain", () => {
   it("matches the module path when invoked through a symlink", async () => {
     const tempDir = await mkdtemp(path.join(os.tmpdir(), "aitoearn-cli-test-"));
     const cliFilePath = path.join(tempDir, "cli.js");
-    const linkPath = path.join(tempDir, "openclaw-plugin");
+    const linkPath = path.join(tempDir, "aitoearn-openclaw");
 
     try {
       await writeFile(cliFilePath, "#!/usr/bin/env node\n", "utf8");

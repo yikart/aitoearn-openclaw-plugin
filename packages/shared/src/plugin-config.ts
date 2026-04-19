@@ -3,6 +3,7 @@ import { z } from "zod";
 export const PLUGIN_ID = "aitoearn";
 export const PLUGIN_NAME = "AiToEarn";
 export const PACKAGE_NAME = "@aitoearn/openclaw-plugin";
+export const INSTALLER_PACKAGE_NAME = "@aitoearn/aitoearn-openclaw-cli";
 export const DEFAULT_BASE_URL = "https://aitoearn.ai/api";
 export const CHINA_BASE_URL = "https://aitoearn.cn/api";
 

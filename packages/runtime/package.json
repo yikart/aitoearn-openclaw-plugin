@@ -1,0 +1,50 @@
+{
+  "name": "@aitoearn/openclaw-plugin",
+  "version": "1.0.8",
+  "type": "module",
+  "main": "./dist/runtime/index.js",
+  "types": "./dist/runtime/index.d.ts",
+  "bin": {
+    "openclaw-plugin": "dist/runtime/src/compat-installer-cli.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "openclaw.plugin.json",
+    "README.md",
+    "package.json"
+  ],
+  "openclaw": {
+    "extensions": [
+      "./dist/runtime/index.js"
+    ],
+    "install": {
+      "npmSpec": "@aitoearn/openclaw-plugin",
+      "defaultChoice": "npm"
+    },
+    "compat": {
+      "pluginApi": ">=2026.3.24"
+    },
+    "build": {
+      "openclawVersion": ">=2026.3.24"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yikart/aitoearn-openclaw-plugin.git"
+  },
+  "scripts": {
+    "prebuild": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\"",
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "test": "vitest run --config ../../vitest.config.ts"
+  },
+  "dependencies": {
+    "@aitoearn/aitoearn-openclaw-cli": "^1.0.0",
+    "@clack/prompts": "^1.1.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@sinclair/typebox": "^0.34.0",
+    "openclaw": ">=2026.3.24",
+    "zod": "^3.24.0"
+  }
+}

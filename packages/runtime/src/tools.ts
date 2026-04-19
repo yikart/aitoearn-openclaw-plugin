@@ -268,12 +268,14 @@ function applyTupleItemsCompatibility(
   );
   const uniqueItems = dedupeSchemas(normalizedItems);
 
-  schema.items =
-    uniqueItems.length === 1
-      ? uniqueItems[0]
-      : {
-          anyOf: uniqueItems,
-        };
+  if (uniqueItems.length === 1) {
+    schema.items = uniqueItems[0];
+    delete schema.prefixItems;
+  } else {
+    schema.prefixItems = normalizedItems;
+    schema.items = false;
+  }
+
   schema.minItems = tupleItems.length;
   schema.maxItems = tupleItems.length;
   delete schema.additionalItems;

@@ -7,8 +7,8 @@ import {
 import path from "node:path";
 import { Worker, type WorkerOptions } from "node:worker_threads";
 import type { PluginLogger } from "openclaw/plugin-sdk/plugin-entry";
-import type { PluginConfig } from "./plugin-config.js";
-import { PLUGIN_ID } from "./plugin-config.js";
+import type { PluginConfig } from "../../shared/src/plugin-config.js";
+import { PLUGIN_ID } from "../../shared/src/plugin-config.js";
 import {
   createToolSnapshot,
   parseToolDiscoveryHelperResult,

@@ -38,7 +38,7 @@ describe("normalizeToolInputSchema", () => {
     });
   });
 
-  it("preserves tuple semantics for mixed item types via anyOf", () => {
+  it("preserves tuple semantics for mixed item types via prefixItems", () => {
     const schema = normalizeToolInputSchema({
       type: "object",
       properties: {
@@ -62,16 +62,15 @@ describe("normalizeToolInputSchema", () => {
       properties: {
         range: {
           type: "array",
-          items: {
-            anyOf: [
-              {
-                type: "string",
-              },
-              {
-                type: "integer",
-              },
-            ],
-          },
+          prefixItems: [
+            {
+              type: "string",
+            },
+            {
+              type: "integer",
+            },
+          ],
+          items: false,
           minItems: 2,
           maxItems: 2,
         },

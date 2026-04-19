@@ -1,52 +1,18 @@
 {
-  "name": "@aitoearn/openclaw-plugin",
+  "name": "aitoearn-openclaw-workspace",
+  "private": true,
   "version": "1.0.8",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "bin": {
-    "openclaw-plugin": "dist/src/cli.js"
-  },
-  "files": [
-    "dist",
-    "skills",
-    "openclaw.plugin.json",
-    "README.md",
-    "package.json"
+  "workspaces": [
+    "packages/shared",
+    "packages/runtime",
+    "packages/installer"
   ],
-  "openclaw": {
-    "extensions": [
-      "./dist/index.js"
-    ],
-    "install": {
-      "npmSpec": "@aitoearn/openclaw-plugin",
-      "defaultChoice": "npm"
-    },
-    "compat": {
-      "pluginApi": ">=2026.3.24"
-    },
-    "build": {
-      "openclawVersion": ">=2026.3.24"
-    }
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/yikart/aitoearn-openclaw-plugin.git"
-  },
   "scripts": {
-    "prebuild": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\"",
-    "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc -p tsconfig.build.json --watch",
-    "prepack": "npm run build",
-    "test": "vitest"
-  },
-  "dependencies": {
-    "@clack/prompts": "^1.1.0",
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "@sinclair/typebox": "^0.34.0",
-    "json5": "^2.2.3",
-    "openclaw": ">=2026.3.24",
-    "zod": "^3.24.0"
+    "verify:versions": "node ./scripts/check-workspace-versions.mjs",
+    "build": "npm run verify:versions && npm run build --workspaces --if-present",
+    "test": "npm run verify:versions && npm run test --workspaces --if-present",
+    "pack:check": "npm run verify:versions && npm pack --dry-run --workspace @aitoearn/openclaw-plugin && npm pack --dry-run --workspace @aitoearn/aitoearn-openclaw-cli"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

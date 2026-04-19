@@ -3,19 +3,20 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import * as p from "@clack/prompts";
-import { getMcpClient } from "./src/mcp-client.js";
+import { getMcpClient } from "../shared/src/mcp-client.js";
 import {
   buildPluginEntryConfig,
   configSchema,
   getPublishPlatformPolicy,
   getPublishToolPlatform,
+  INSTALLER_PACKAGE_NAME,
   normalizeBaseUrl,
   PLUGIN_ID,
   PLUGIN_NAME,
   resolveAiToEarnEnvironment,
   type PluginConfig,
-} from "./src/plugin-config.js";
-import { runInteractiveSetupFlow } from "./src/setup-flow.js";
+} from "../shared/src/plugin-config.js";
+import { runInteractiveSetupFlow } from "../shared/src/setup-flow.js";
 import {
   applySyncToolDiscoveryLogs,
   loadToolDefinitionsSync,
@@ -176,7 +177,7 @@ export default definePluginEntry({
 async function runSetup(api: OpenClawPluginApi): Promise<void> {
   const setupResult = await runInteractiveSetupFlow({
     compatibilityNote:
-      'This command is deprecated. Prefer `npx @aitoearn/openclaw-plugin` for future setup.',
+      `This command is deprecated. Prefer \`npx ${INSTALLER_PACKAGE_NAME}\` for future setup.`,
   });
   if (setupResult.status === "cancelled") {
     return;

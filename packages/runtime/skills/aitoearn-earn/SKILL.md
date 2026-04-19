@@ -1,6 +1,6 @@
 ---
 name: aitoearn-earn
-description: Use this skill when the user wants an AiToEarn-driven character, especially a proactive money-making lobster, to run a content-to-cash loop through creator tasks, affiliate earnings, campaigns, published-task tracking, and monetization review.
+description: Use this skill when the user wants a lobster that actively looks for income opportunities, turns money-making actions into content, and keeps looping through creator tasks, affiliate earnings, campaigns, published-task tracking, and monetization review.
 ---
 
 # AiToEarn Earn
@@ -118,7 +118,7 @@ description: Use this skill when the user wants an AiToEarn-driven character, es
   - `workLink`
   - `applicationId`
   - `inviteCode`
-- 只有金额字段保持服务端原始分单位，不自动换算；积分和其他非金额计数保持原始值。需要解释金额时统一按 `100 = 1 元` 说明
+- 金额字段按服务端返回的原始最小货币单位理解，并结合返回里的 `currency` 解释；积分和其他非金额计数保持原始值，不做按分换算
 
 ## 降级规则
 
@@ -141,4 +141,4 @@ description: Use this skill when the user wants an AiToEarn-driven character, es
 - 每次副作用调用后，明确告诉用户：
   - 刚刚执行了什么
   - 下一步应该查哪个主键
-- 解释金额时，明确提醒“只有金额按分单位返回，积分保持原始值”
+- 解释金额时，明确提醒“金额看最小货币单位和 `currency`，积分保持原始值”
