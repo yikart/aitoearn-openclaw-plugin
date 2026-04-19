@@ -46,13 +46,13 @@ interface CliDependencies {
   runSetupFlow: (options?: { showIntro?: boolean }) => Promise<SetupFlowResult>;
 }
 
-const HELP_TEXT = `Usage: npx -y @aitoearn/aitoearn-openclaw-cli [upgrade]
+const HELP_TEXT = `Usage: npx -y @aitoearn/openclaw-plugin-cli [upgrade]
 
 Bootstrap installer for the AiToEarn OpenClaw plugin.
 
 Examples:
-  npx -y @aitoearn/aitoearn-openclaw-cli
-  npx -y @aitoearn/aitoearn-openclaw-cli upgrade`;
+  npx -y @aitoearn/openclaw-plugin-cli
+  npx -y @aitoearn/openclaw-plugin-cli upgrade`;
 
 export async function runSetupCli(
   args: string[],

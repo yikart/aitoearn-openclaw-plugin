@@ -38,7 +38,7 @@ describe("runSetupCli", () => {
     packageContext = {
       rootDir: "/tmp/aitoearn-installer",
       manifest: {
-        name: "@aitoearn/aitoearn-openclaw-cli",
+        name: "@aitoearn/openclaw-plugin-cli",
         version: "1.2.3",
       },
       openclawCliPath: "/tmp/node_modules/openclaw/openclaw.mjs",

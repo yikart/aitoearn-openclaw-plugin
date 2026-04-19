@@ -54,13 +54,13 @@ const runtimeManifest = JSON.parse(
   readFileSync(path.join(rootDir, "packages/runtime/package.json"), "utf8")
 );
 const installerDependencyVersion =
-  runtimeManifest.dependencies?.["@aitoearn/aitoearn-openclaw-cli"];
+  runtimeManifest.dependencies?.["@aitoearn/openclaw-plugin-cli"];
 
 if (!satisfiesSupportedRange(expectedVersion, installerDependencyVersion)) {
   const details = values
     .map((entry) => `${entry.label}: ${entry.version}`)
     .concat(
-      `packages/runtime/package.json dependency @aitoearn/aitoearn-openclaw-cli: ${
+      `packages/runtime/package.json dependency @aitoearn/openclaw-plugin-cli: ${
         installerDependencyVersion ?? "(missing)"
       }`
     )
@@ -72,7 +72,7 @@ if (mismatches.length > 0) {
   const details = values
     .map((entry) => `${entry.label}: ${entry.version}`)
     .concat(
-      `packages/runtime/package.json dependency @aitoearn/aitoearn-openclaw-cli: ${
+      `packages/runtime/package.json dependency @aitoearn/openclaw-plugin-cli: ${
         installerDependencyVersion ?? "(missing)"
       }`
     )

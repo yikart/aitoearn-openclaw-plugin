@@ -89,11 +89,11 @@ describe("installPluginWithOpenClaw", () => {
   const packageContext: PackageContext = {
     rootDir: "/tmp/installer",
     manifest: {
-      name: "@aitoearn/aitoearn-openclaw-cli",
-      version: "1.0.9",
+      name: "@aitoearn/openclaw-plugin-cli",
+      version: "1.0.10",
     },
     openclawCliPath: "/tmp/node_modules/openclaw/openclaw.mjs",
-    runtimeInstallSpec: "@aitoearn/openclaw-plugin@1.0.9",
+    runtimeInstallSpec: "@aitoearn/openclaw-plugin@1.0.10",
     runtimeTrackSpec: "@aitoearn/openclaw-plugin",
   };
 
@@ -104,8 +104,8 @@ describe("installPluginWithOpenClaw", () => {
         installs: {
           aitoearn: {
             source: "npm",
-            spec: "@aitoearn/openclaw-plugin@1.0.9",
-            resolvedSpec: "@aitoearn/openclaw-plugin@1.0.9",
+            spec: "@aitoearn/openclaw-plugin@1.0.10",
+            resolvedSpec: "@aitoearn/openclaw-plugin@1.0.10",
           },
         },
       },
@@ -133,7 +133,7 @@ describe("installPluginWithOpenClaw", () => {
     expect(runOpenClaw).toHaveBeenCalledWith(packageContext.openclawCliPath, [
       "plugins",
       "install",
-      "@aitoearn/openclaw-plugin@1.0.9",
+      "@aitoearn/openclaw-plugin@1.0.10",
     ]);
     expect(writeConfig).toHaveBeenCalledWith(
       {
@@ -142,7 +142,7 @@ describe("installPluginWithOpenClaw", () => {
             aitoearn: {
               source: "npm",
               spec: "@aitoearn/openclaw-plugin",
-              resolvedSpec: "@aitoearn/openclaw-plugin@1.0.9",
+              resolvedSpec: "@aitoearn/openclaw-plugin@1.0.10",
             },
           },
         },
@@ -198,8 +198,8 @@ describe("installPluginWithOpenClaw", () => {
         installs: {
           aitoearn: {
             source: "npm",
-            spec: "@aitoearn/openclaw-plugin@1.0.9",
-            resolvedSpec: "@aitoearn/openclaw-plugin@1.0.9",
+            spec: "@aitoearn/openclaw-plugin@1.0.10",
+            resolvedSpec: "@aitoearn/openclaw-plugin@1.0.10",
           },
         },
       },
@@ -238,7 +238,7 @@ describe("installPluginWithOpenClaw", () => {
     expect(runOpenClaw).toHaveBeenCalledWith(packageContext.openclawCliPath, [
       "plugins",
       "install",
-      "@aitoearn/openclaw-plugin@1.0.9",
+      "@aitoearn/openclaw-plugin@1.0.10",
     ]);
     expect(rm).toHaveBeenCalledWith(
       "/tmp/.openclaw/extensions/aitoearn.legacy-backup-4321-12345",
@@ -251,7 +251,7 @@ describe("installPluginWithOpenClaw", () => {
             aitoearn: {
               source: "npm",
               spec: "@aitoearn/openclaw-plugin",
-              resolvedSpec: "@aitoearn/openclaw-plugin@1.0.9",
+              resolvedSpec: "@aitoearn/openclaw-plugin@1.0.10",
             },
           },
         },

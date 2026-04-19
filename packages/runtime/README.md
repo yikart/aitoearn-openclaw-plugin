@@ -5,7 +5,7 @@ AiToEarn 社交媒体管理工具的 OpenClaw 运行时插件包。
 ## 推荐安装
 
 ```bash
-npx -y @aitoearn/aitoearn-openclaw-cli
+npx -y @aitoearn/openclaw-plugin-cli
 ```
 
 兼容旧入口：
@@ -19,7 +19,7 @@ npx -y @aitoearn/openclaw-plugin
 升级已通过 npm 安装的插件：
 
 ```bash
-npx -y @aitoearn/aitoearn-openclaw-cli upgrade
+npx -y @aitoearn/openclaw-plugin-cli upgrade
 ```
 
 这个 CLI 会调用宿主 `openclaw plugins install/update`，并在首次安装时引导写入 `plugins.entries.aitoearn.config`。

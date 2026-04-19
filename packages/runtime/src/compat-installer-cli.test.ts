@@ -14,7 +14,7 @@ describe("runCompatInstallerCli", () => {
 
     expect(exitCode).toBe(0);
     expect(warn).toHaveBeenCalledWith(
-      "Deprecated compatibility entrypoint detected. Forwarding to @aitoearn/aitoearn-openclaw-cli."
+      "Deprecated compatibility entrypoint detected. Forwarding to @aitoearn/openclaw-plugin-cli."
     );
     expect(runSetupCli).toHaveBeenCalledWith(["upgrade"]);
   });
