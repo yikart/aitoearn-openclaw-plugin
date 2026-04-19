@@ -1,6 +1,6 @@
 {
   "name": "@aitoearn/openclaw-plugin",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "type": "module",
   "main": "./dist/runtime/index.js",
   "types": "./dist/runtime/index.d.ts",
