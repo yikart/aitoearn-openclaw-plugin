@@ -21,6 +21,10 @@ import {
   applySyncToolDiscoveryLogs,
   loadToolDefinitionsSync,
 } from "./src/tool-discovery.js";
+import {
+  ASSET_TYPE_VALUES,
+  uploadAssetFromPath,
+} from "./src/asset-upload.js";
 import { sanitizeToolParams } from "./src/tool-params.js";
 import type { ToolDefinition } from "./src/tools.js";
 
@@ -55,6 +59,37 @@ const AFFILIATE_AMOUNT_NOTE =
   `${GENERIC_MONEY_UNITS_NOTE} For affiliate and settlement fields such as pending, settled, total, amount, and commissionAmount, treat 1234 with currency: USD as 12.34 USD.`;
 const DEPOSIT_AMOUNT_NOTE =
   `${GENERIC_MONEY_UNITS_NOTE} For deposit-style fields such as depositAmount, treat 500 with currency: USD as 5 USD.`;
+
+const UPLOAD_ASSET_FROM_PATH_TOOL_NAME = "uploadAssetFromPath";
+const UPLOAD_ASSET_FROM_PATH_TOOL_DESCRIPTION =
+  "Read a local file from filePath, create an AiToEarn asset upload signature, upload the file via signed PUT, confirm the upload, and return the confirmed asset metadata.";
+const UPLOAD_ASSET_FROM_PATH_PARAMETERS = {
+  type: "object",
+  additionalProperties: false,
+  required: ["filePath"],
+  properties: {
+    filePath: {
+      type: "string",
+      description:
+        "Local file path to upload. Supports absolute paths and relative paths resolved from the current working directory.",
+    },
+    type: {
+      type: "string",
+      enum: [...ASSET_TYPE_VALUES],
+      description: 'AiToEarn asset type. Defaults to "temp".',
+    },
+    filename: {
+      type: "string",
+      description:
+        "Optional upload filename. Defaults to the basename of filePath.",
+    },
+    contentType: {
+      type: "string",
+      description:
+        "Optional MIME type override. Defaults to a value inferred from the filename extension.",
+    },
+  },
+} as const;
 
 export default definePluginEntry({
   id: PLUGIN_ID,
@@ -144,6 +179,50 @@ export default definePluginEntry({
                 policyButMissingPublishPlatforms,
                 unsupportedPublishPlatforms,
               }),
+            },
+          ],
+          details: null,
+        };
+      },
+    });
+
+    api.registerTool({
+      name: UPLOAD_ASSET_FROM_PATH_TOOL_NAME,
+      label: UPLOAD_ASSET_FROM_PATH_TOOL_NAME,
+      description: UPLOAD_ASSET_FROM_PATH_TOOL_DESCRIPTION,
+      parameters: UPLOAD_ASSET_FROM_PATH_PARAMETERS,
+      async execute(_toolCallId, params) {
+        const config = await resolvePluginConfig(api);
+        if (!config) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "AiToEarn plugin is not configured. Re-run setup and restart the gateway.",
+              },
+            ],
+            details: null,
+          };
+        }
+
+        const input = isRecord(params) ? params : {};
+        const result = await uploadAssetFromPath({
+          apiKey: config.apiKey,
+          baseUrl: config.baseUrl,
+          filePath: typeof input.filePath === "string" ? input.filePath : "",
+          type: typeof input.type === "string" ? input.type : undefined,
+          filename:
+            typeof input.filename === "string" ? input.filename : undefined,
+          contentType:
+            typeof input.contentType === "string"
+              ? input.contentType
+              : undefined,
+        });
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(result, null, 2),
             },
           ],
           details: null,

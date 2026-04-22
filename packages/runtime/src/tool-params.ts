@@ -18,6 +18,8 @@ const PLACEHOLDER_TEXT_PATTERNS = [
   /^fake$/i,
 ] as const;
 
+const COMPOSED_SCHEMA_KEYS = ["allOf", "anyOf", "oneOf"] as const;
+
 type JsonSchema = boolean | Record<string, unknown>;
 type SanitizedValue =
   | typeof DELETE_VALUE
@@ -66,7 +68,11 @@ function sanitizeStringValue(
   isRequired: boolean
 ): SanitizedValue {
   const trimmed = value.trim();
-  if (!trimmed || isPlaceholderValue(trimmed)) {
+  if (!trimmed) {
+    return DELETE_VALUE;
+  }
+
+  if (isPlaceholderValue(trimmed)) {
     return isRequired ? value : DELETE_VALUE;
   }
 
@@ -89,7 +95,7 @@ function sanitizeArrayValue(
   }
 
   if (sanitizedItems.length === 0) {
-    return isRequired ? value : DELETE_VALUE;
+    return isRequired && containsNonBlankValue(value) ? value : DELETE_VALUE;
   }
 
   return sanitizedItems;
@@ -113,7 +119,7 @@ function sanitizeObjectValue(
   }
 
   if (sanitizedEntries.length === 0) {
-    return isRequired ? value : DELETE_VALUE;
+    return isRequired && containsNonBlankValue(value) ? value : DELETE_VALUE;
   }
 
   return Object.fromEntries(sanitizedEntries);
@@ -122,25 +128,47 @@ function sanitizeObjectValue(
 function getSchemaProperties(
   schema: JsonSchema | undefined
 ): Record<string, JsonSchema | undefined> {
-  if (!isRecord(schema) || !isRecord(schema.properties)) {
+  if (!isRecord(schema)) {
     return {};
   }
 
   const properties: Record<string, JsonSchema | undefined> = {};
-  for (const [key, value] of Object.entries(schema.properties)) {
-    properties[key] = isJsonSchema(value) ? value : undefined;
+
+  if (isRecord(schema.properties)) {
+    for (const [key, value] of Object.entries(schema.properties)) {
+      properties[key] = isJsonSchema(value) ? value : undefined;
+    }
   }
+
+  for (const childSchema of getComposedSchemas(schema)) {
+    for (const [key, value] of Object.entries(getSchemaProperties(childSchema))) {
+      if (!Object.prototype.hasOwnProperty.call(properties, key)) {
+        properties[key] = value;
+      }
+    }
+  }
+
   return properties;
 }
 
 function getSchemaRequiredSet(schema: JsonSchema | undefined): Set<string> {
-  if (!isRecord(schema) || !Array.isArray(schema.required)) {
+  if (!isRecord(schema)) {
     return new Set();
   }
 
-  return new Set(
-    schema.required.filter((value): value is string => typeof value === "string")
+  const required = new Set(
+    Array.isArray(schema.required)
+      ? schema.required.filter((value): value is string => typeof value === "string")
+      : []
   );
+
+  for (const childSchema of getComposedSchemas(schema, ["allOf"])) {
+    for (const key of getSchemaRequiredSet(childSchema)) {
+      required.add(key);
+    }
+  }
+
+  return required;
 }
 
 function getArrayItemSchema(
@@ -158,7 +186,40 @@ function getArrayItemSchema(
     }
   }
 
-  return isJsonSchema(schema.items) ? schema.items : undefined;
+  if (isJsonSchema(schema.items)) {
+    return schema.items;
+  }
+
+  for (const childSchema of getComposedSchemas(schema)) {
+    const itemSchema = getArrayItemSchema(childSchema, index);
+    if (itemSchema) {
+      return itemSchema;
+    }
+  }
+
+  return undefined;
+}
+
+function getComposedSchemas(
+  schema: Record<string, unknown>,
+  keys: ReadonlyArray<(typeof COMPOSED_SCHEMA_KEYS)[number]> = COMPOSED_SCHEMA_KEYS
+): JsonSchema[] {
+  const schemas: JsonSchema[] = [];
+
+  for (const key of keys) {
+    const value = schema[key];
+    if (!Array.isArray(value)) {
+      continue;
+    }
+
+    for (const childSchema of value) {
+      if (isJsonSchema(childSchema)) {
+        schemas.push(childSchema);
+      }
+    }
+  }
+
+  return schemas;
 }
 
 function isPlaceholderValue(value: string): boolean {
@@ -181,6 +242,26 @@ function isPlaceholderUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function containsNonBlankValue(value: unknown): boolean {
+  if (value === undefined || value === null) {
+    return false;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((item) => containsNonBlankValue(item));
+  }
+
+  if (isRecord(value)) {
+    return Object.values(value).some((item) => containsNonBlankValue(item));
+  }
+
+  return true;
 }
 
 function isJsonSchema(value: unknown): value is JsonSchema {

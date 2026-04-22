@@ -15,6 +15,11 @@ const sharedMcpClientMock = vi.hoisted(() => ({
   }),
 }));
 
+const assetUploadMock = vi.hoisted(() => ({
+  ASSET_TYPE_VALUES: ["temp", "userMedia"],
+  uploadAssetFromPath: vi.fn(),
+}));
+
 vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
   Client: vi.fn().mockImplementation(() => mcpClientMock),
 }));
@@ -30,6 +35,7 @@ vi.mock("openclaw/plugin-sdk/plugin-entry", () => ({
 vi.mock("openclaw/plugin-sdk/config-runtime", () => configRuntimeMock);
 vi.mock("./src/tool-discovery.js", () => toolDiscoveryMock);
 vi.mock("../shared/src/mcp-client.js", () => sharedMcpClientMock);
+vi.mock("./src/asset-upload.js", () => assetUploadMock);
 
 import pluginEntry from "./index.js";
 
@@ -97,6 +103,17 @@ describe("AiToEarn OpenClaw Plugin", () => {
     sharedMcpClientMock.callMcpTool.mockReset();
     sharedMcpClientMock.callMcpTool.mockResolvedValue({
       content: [{ type: "text", text: "test result" }],
+    });
+    assetUploadMock.uploadAssetFromPath.mockReset();
+    assetUploadMock.uploadAssetFromPath.mockResolvedValue({
+      id: "asset-1",
+      path: "temp/asset-1.png",
+      url: "https://cdn.example.com/temp/asset-1.png",
+      type: "temp",
+      filename: "screenshot.png",
+      size: 5,
+      contentType: "image/png",
+      filePath: "/tmp/screenshot.png",
     });
     toolDiscoveryMock.applySyncToolDiscoveryLogs.mockReset();
     toolDiscoveryMock.loadToolDefinitionsSync.mockReset();
@@ -168,6 +185,7 @@ describe("AiToEarn OpenClaw Plugin", () => {
     expect(toolDiscoveryMock.applySyncToolDiscoveryLogs).toHaveBeenCalled();
     expect(getRegisteredToolNames()).toEqual([
       "getAiToEarnEnvironment",
+      "uploadAssetFromPath",
       "test_tool",
       "publishPostToTiktok",
     ]);
@@ -286,6 +304,51 @@ describe("AiToEarn OpenClaw Plugin", () => {
     });
   });
 
+  it("should execute uploadAssetFromPath with resolved plugin config", async () => {
+    await pluginEntry.register(mockApi as any);
+
+    const result = await getRegisteredTool("uploadAssetFromPath").execute(
+      "test-call-id",
+      {
+        filePath: "./captures/screenshot.png",
+        type: "temp",
+        filename: "xhs-comment.png",
+        contentType: "image/png",
+      }
+    );
+
+    expect(assetUploadMock.uploadAssetFromPath).toHaveBeenCalledWith({
+      apiKey: "test-api-key",
+      baseUrl: "https://test.aitoearn.ai/api",
+      filePath: "./captures/screenshot.png",
+      type: "temp",
+      filename: "xhs-comment.png",
+      contentType: "image/png",
+    });
+    expect(result).toEqual({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              id: "asset-1",
+              path: "temp/asset-1.png",
+              url: "https://cdn.example.com/temp/asset-1.png",
+              type: "temp",
+              filename: "screenshot.png",
+              size: 5,
+              contentType: "image/png",
+              filePath: "/tmp/screenshot.png",
+            },
+            null,
+            2
+          ),
+        },
+      ],
+      details: null,
+    });
+  });
+
   it("should sanitize non-required placeholder values before calling MCP", async () => {
     toolDiscoveryMock.loadToolDefinitionsSync.mockReturnValue({
       source: "remote",
@@ -393,6 +456,83 @@ describe("AiToEarn OpenClaw Plugin", () => {
     );
   });
 
+  it("should strip blank optional params inside composed schemas before calling MCP", async () => {
+    toolDiscoveryMock.loadToolDefinitionsSync.mockReturnValue({
+      source: "remote",
+      tools: [
+        createTool("test_tool", "Tool test_tool", {
+          type: "object",
+          allOf: [
+            {
+              properties: {
+                accountId: {
+                  anyOf: [{ type: "string" }, { type: "null" }],
+                },
+                opportunityId: {
+                  oneOf: [{ type: "string" }, { type: "null" }],
+                },
+              },
+            },
+          ],
+          properties: {
+            materialId: { type: "string" },
+            shippingAddress: {
+              anyOf: [
+                {
+                  type: "object",
+                  required: ["firstName", "address1"],
+                  properties: {
+                    firstName: { type: "string" },
+                    lastName: { type: "string" },
+                    address1: { type: "string" },
+                    address2: { type: "string" },
+                    city: { type: "string" },
+                    province: { type: "string" },
+                    country: { type: "string" },
+                    zip: { type: "string" },
+                    phone: { type: "string" },
+                  },
+                },
+                { type: "null" },
+              ],
+            },
+            workLink: { type: "string" },
+          },
+        }),
+      ],
+      logs: [],
+    });
+
+    await pluginEntry.register(mockApi as any);
+
+    await getRegisteredTool("test_tool").execute("test-call-id", {
+      accountId: " ",
+      opportunityId: " ",
+      materialId: " ",
+      shippingAddress: {
+        firstName: " ",
+        lastName: " ",
+        address1: " ",
+        address2: " ",
+        city: " ",
+        province: " ",
+        country: " ",
+        zip: " ",
+        phone: " ",
+      },
+      workLink: "https://real.example.com/work",
+    });
+
+    expect(sharedMcpClientMock.callMcpTool).toHaveBeenCalledWith(
+      "test-api-key",
+      "https://test.aitoearn.ai/api",
+      "test_tool",
+      {
+        workLink: "https://real.example.com/work",
+      }
+    );
+  });
+
   it("should keep only China publish tools for China environment", async () => {
     setDiscoveredTools([
       "test_tool",
@@ -409,6 +549,7 @@ describe("AiToEarn OpenClaw Plugin", () => {
 
     expect(getRegisteredToolNames()).toEqual([
       "getAiToEarnEnvironment",
+      "uploadAssetFromPath",
       "test_tool",
       "publishPostToDouyin",
       "publishPostToKwai",
@@ -433,6 +574,7 @@ describe("AiToEarn OpenClaw Plugin", () => {
 
     expect(getRegisteredToolNames()).toEqual([
       "getAiToEarnEnvironment",
+      "uploadAssetFromPath",
       "test_tool",
       "publishPostToKwai",
       "publishPostToTiktok",

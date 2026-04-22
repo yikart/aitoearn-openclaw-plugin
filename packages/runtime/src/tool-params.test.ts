@@ -141,4 +141,65 @@ describe("sanitizeToolParams", () => {
       time: ["2026-01-01T00:00:00Z"],
     });
   });
+
+  it("removes blank params nested inside anyOf/oneOf/allOf schemas", () => {
+    const result = sanitizeToolParams(
+      {
+        accountId: " ",
+        opportunityId: " ",
+        materialId: " ",
+        shippingAddress: {
+          firstName: " ",
+          lastName: " ",
+          address1: " ",
+          address2: " ",
+          city: " ",
+          province: " ",
+          country: " ",
+          zip: " ",
+          phone: " ",
+        },
+      },
+      {
+        type: "object",
+        allOf: [
+          {
+            properties: {
+              accountId: {
+                anyOf: [{ type: "string" }, { type: "null" }],
+              },
+              opportunityId: {
+                oneOf: [{ type: "string" }, { type: "null" }],
+              },
+            },
+          },
+        ],
+        properties: {
+          materialId: { type: "string" },
+          shippingAddress: {
+            anyOf: [
+              {
+                type: "object",
+                required: ["firstName", "address1"],
+                properties: {
+                  firstName: { type: "string" },
+                  lastName: { type: "string" },
+                  address1: { type: "string" },
+                  address2: { type: "string" },
+                  city: { type: "string" },
+                  province: { type: "string" },
+                  country: { type: "string" },
+                  zip: { type: "string" },
+                  phone: { type: "string" },
+                },
+              },
+              { type: "null" },
+            ],
+          },
+        },
+      }
+    );
+
+    expect(result).toEqual({});
+  });
 });
