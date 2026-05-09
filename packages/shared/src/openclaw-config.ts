@@ -10,6 +10,8 @@ import {
   type SetupConfig,
 } from "./plugin-config.js";
 
+export const DEFAULT_TOOL_ALLOWLIST_ADDITIONS = [PLUGIN_ID, "browser"] as const;
+
 const LEGACY_STATE_DIRNAMES = [".clawdbot", ".moldbot"] as const;
 const LEGACY_CONFIG_FILENAMES = ["clawdbot.json", "moldbot.json"] as const;
 const NEW_STATE_DIRNAME = ".openclaw";
@@ -113,6 +115,21 @@ export function applySetupConfigToOpenClawConfig(
   plugins.entries = entries;
   next.plugins = plugins;
 
+  return applyDefaultToolAllowlistToOpenClawConfig(next);
+}
+
+export function applyDefaultToolAllowlistToOpenClawConfig(
+  config: Record<string, unknown>
+): Record<string, unknown> {
+  const next = cloneRecord(config);
+  const tools = cloneRecord(next.tools);
+
+  tools.alsoAllow = mergeStringList(
+    tools.alsoAllow,
+    DEFAULT_TOOL_ALLOWLIST_ADDITIONS
+  );
+  next.tools = tools;
+
   return next;
 }
 
@@ -196,6 +213,45 @@ function stripBom(value: string): string {
 
 function cloneRecord(value: unknown): Record<string, unknown> {
   return isRecord(value) ? { ...value } : {};
+}
+
+function mergeStringList(
+  value: unknown,
+  additions: readonly string[]
+): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  const push = (input: unknown) => {
+    if (typeof input !== "string") {
+      return;
+    }
+
+    const trimmed = input.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const normalized = trimmed.toLowerCase();
+    if (seen.has(normalized)) {
+      return;
+    }
+
+    seen.add(normalized);
+    result.push(trimmed);
+  };
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      push(item);
+    }
+  }
+
+  for (const item of additions) {
+    push(item);
+  }
+
+  return result;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

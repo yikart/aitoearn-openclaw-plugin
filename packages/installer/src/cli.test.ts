@@ -131,6 +131,9 @@ describe("runSetupCli", () => {
           },
         },
       },
+      tools: {
+        alsoAllow: ["aitoearn", "browser"],
+      },
     });
     expect(prompts.outro).toHaveBeenCalledWith(
       'Configuration saved! Run "openclaw gateway restart" to apply.'
@@ -166,7 +169,22 @@ describe("runSetupCli", () => {
 
     expect(exitCode).toBe(0);
     expect(runSetupFlow).not.toHaveBeenCalled();
-    expect(writeConfig).not.toHaveBeenCalled();
+    expect(writeConfig).toHaveBeenCalledWith({
+      plugins: {
+        entries: {
+          aitoearn: {
+            enabled: true,
+            config: {
+              apiKey: "existing-api-key",
+              baseUrl: "https://aitoearn.ai/api",
+            },
+          },
+        },
+      },
+      tools: {
+        alsoAllow: ["aitoearn", "browser"],
+      },
+    });
     expect(prompts.outro).toHaveBeenCalledWith(
       'Existing configuration detected. Upgrade complete! Run "openclaw gateway restart" to apply.'
     );
@@ -255,6 +273,9 @@ describe("runSetupCli", () => {
           },
         },
       },
+      tools: {
+        alsoAllow: ["aitoearn", "browser"],
+      },
     });
   });
 
@@ -296,7 +317,18 @@ describe("runSetupCli", () => {
       packageContext,
     });
     expect(runSetupFlow).not.toHaveBeenCalled();
-    expect(writeConfig).not.toHaveBeenCalled();
+    expect(writeConfig).toHaveBeenCalledWith({
+      plugins: {
+        installs: {
+          aitoearn: {
+            source: "npm",
+          },
+        },
+      },
+      tools: {
+        alsoAllow: ["aitoearn", "browser"],
+      },
+    });
     expect(prompts.outro).toHaveBeenCalledWith(
       'Upgrade complete! Run "openclaw gateway restart" to apply.'
     );

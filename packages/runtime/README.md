@@ -14,7 +14,7 @@ npx -y @aitoearn/openclaw-plugin-cli
 npx -y @aitoearn/openclaw-plugin-cli upgrade
 ```
 
-这个 CLI 会调用宿主 `openclaw plugins install/update`，并在首次安装时引导写入 `plugins.entries.aitoearn.config`。
+这个 CLI 会调用宿主 `openclaw plugins install/update`，引导写入 `plugins.entries.aitoearn.config`，并自动启用 AiToEarn tools 和 `browser` tool。
 
 ## 直接安装运行时包
 

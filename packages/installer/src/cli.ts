@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
 import {
+  applyDefaultToolAllowlistToOpenClawConfig,
   applySetupConfigToOpenClawConfig,
   hasConfiguredPluginEntry,
   readOpenClawConfig,
@@ -86,6 +87,14 @@ export async function runSetupCli(
   );
 
   if (command === "upgrade") {
+    const updateResult = await updateOpenClawConfig(
+      deps,
+      applyDefaultToolAllowlistToOpenClawConfig
+    );
+    if (updateResult !== 0) {
+      return updateResult;
+    }
+
     deps.prompts.outro(
       installResult.action === "update"
         ? 'Upgrade complete! Run "openclaw gateway restart" to apply.'
@@ -95,6 +104,14 @@ export async function runSetupCli(
   }
 
   if (command === "auto" && hasConfiguredPluginEntry(preInstallConfig)) {
+    const updateResult = await updateOpenClawConfig(
+      deps,
+      applyDefaultToolAllowlistToOpenClawConfig
+    );
+    if (updateResult !== 0) {
+      return updateResult;
+    }
+
     deps.prompts.outro(
       'Existing configuration detected. Upgrade complete! Run "openclaw gateway restart" to apply.'
     );
@@ -110,23 +127,13 @@ export async function runSetupCli(
     return 1;
   }
 
-  const configSpinner = deps.prompts.spinner();
-  configSpinner.start("Writing OpenClaw configuration...");
-
-  try {
-    const currentConfig = await deps.readConfig();
-    const nextConfig = applySetupConfigToOpenClawConfig(
-      currentConfig,
-      setupResult.config
-    );
-    await deps.writeConfig(nextConfig);
-  } catch (error) {
-    configSpinner.stop("Failed to write OpenClaw configuration.");
-    deps.prompts.cancel(formatError(error));
-    return 1;
+  const updateResult = await updateOpenClawConfig(deps, (currentConfig) =>
+    applySetupConfigToOpenClawConfig(currentConfig, setupResult.config)
+  );
+  if (updateResult !== 0) {
+    return updateResult;
   }
 
-  configSpinner.stop("OpenClaw configuration updated.");
   deps.prompts.outro(
     'Configuration saved! Run "openclaw gateway restart" to apply.'
   );
@@ -142,6 +149,32 @@ function createDefaultDependencies(): CliDependencies {
     writeConfig: async (config) => writeOpenClawConfig(config),
     runSetupFlow: runInteractiveSetupFlow,
   };
+}
+
+async function updateOpenClawConfig(
+  deps: CliDependencies,
+  transform: (config: Record<string, unknown>) => Record<string, unknown>
+): Promise<number> {
+  const configSpinner = deps.prompts.spinner();
+  configSpinner.start("Writing OpenClaw configuration...");
+
+  try {
+    const currentConfig = await deps.readConfig();
+    const nextConfig = transform(currentConfig);
+    if (JSON.stringify(nextConfig) === JSON.stringify(currentConfig)) {
+      configSpinner.stop("OpenClaw configuration already up to date.");
+      return 0;
+    }
+
+    await deps.writeConfig(nextConfig);
+  } catch (error) {
+    configSpinner.stop("Failed to write OpenClaw configuration.");
+    deps.prompts.cancel(formatError(error));
+    return 1;
+  }
+
+  configSpinner.stop("OpenClaw configuration updated.");
+  return 0;
 }
 
 function formatError(error: unknown): string {

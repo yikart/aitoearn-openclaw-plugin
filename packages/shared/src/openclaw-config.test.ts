@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  applyDefaultToolAllowlistToOpenClawConfig,
   applySetupConfigToOpenClawConfig,
   getPluginInstallRecord,
   hasConfiguredPluginEntry,
@@ -39,6 +40,41 @@ describe("openclaw-config helpers", () => {
             },
           },
         },
+      },
+      tools: {
+        alsoAllow: ["aitoearn", "browser"],
+      },
+    });
+  });
+
+  it("adds default tool allowlist entries without dropping existing entries", () => {
+    expect(
+      applyDefaultToolAllowlistToOpenClawConfig({
+        tools: {
+          profile: "coding",
+          alsoAllow: ["Browser", "customTool", "aitoearn"],
+          deny: ["dangerousTool"],
+        },
+      })
+    ).toEqual({
+      tools: {
+        profile: "coding",
+        alsoAllow: ["Browser", "customTool", "aitoearn"],
+        deny: ["dangerousTool"],
+      },
+    });
+  });
+
+  it("rebuilds invalid default tool allowlist config as a valid string list", () => {
+    expect(
+      applyDefaultToolAllowlistToOpenClawConfig({
+        tools: {
+          alsoAllow: "browser",
+        },
+      })
+    ).toEqual({
+      tools: {
+        alsoAllow: ["aitoearn", "browser"],
       },
     });
   });
