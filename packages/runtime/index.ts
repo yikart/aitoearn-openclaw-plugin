@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
@@ -63,6 +66,8 @@ const DEPOSIT_AMOUNT_NOTE =
 const UPLOAD_ASSET_FROM_PATH_TOOL_NAME = "uploadAssetFromPath";
 const UPLOAD_ASSET_FROM_PATH_TOOL_DESCRIPTION =
   "Read a local file from filePath, create an AiToEarn asset upload signature, upload the file via signed PUT, confirm the upload, and return the confirmed asset metadata.";
+const LEGACY_STATE_DIRNAMES = [".clawdbot", ".moldbot"] as const;
+const NEW_STATE_DIRNAME = ".openclaw";
 const UPLOAD_ASSET_FROM_PATH_PARAMETERS = {
   type: "object",
   additionalProperties: false,
@@ -121,7 +126,7 @@ export default definePluginEntry({
     const discoveryResult = loadToolDefinitionsSync({
       config: api.config,
       pluginConfig,
-      stateDir: api.runtime.state.resolveStateDir(),
+      stateDir: resolvePluginStateDir(api),
     });
 
     applySyncToolDiscoveryLogs(api.logger, discoveryResult.logs);
@@ -352,6 +357,53 @@ function shouldRegisterTool(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function resolvePluginStateDir(api: OpenClawPluginApi): string {
+  const runtime = api.runtime as unknown as {
+    state?: {
+      resolveStateDir?: () => string;
+    };
+  } | undefined;
+  const stateDir = runtime?.state?.resolveStateDir?.();
+
+  return typeof stateDir === "string" && stateDir.trim()
+    ? stateDir
+    : resolveFallbackOpenClawStateDir();
+}
+
+function resolveFallbackOpenClawStateDir(): string {
+  const override = process.env.OPENCLAW_STATE_DIR?.trim();
+  if (override) {
+    return resolveUserPath(override);
+  }
+
+  const homeDir = os.homedir();
+  const newDir = path.join(homeDir, NEW_STATE_DIRNAME);
+  if (process.env.OPENCLAW_TEST_FAST === "1") {
+    return newDir;
+  }
+
+  for (const dirname of LEGACY_STATE_DIRNAMES) {
+    const candidate = path.join(homeDir, dirname);
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return newDir;
+}
+
+function resolveUserPath(input: string): string {
+  if (input === "~") {
+    return os.homedir();
+  }
+
+  if (input.startsWith("~/")) {
+    return path.join(os.homedir(), input.slice(2));
+  }
+
+  return path.resolve(input);
 }
 
 function describeTool(

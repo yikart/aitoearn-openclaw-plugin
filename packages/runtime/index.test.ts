@@ -194,6 +194,31 @@ describe("AiToEarn OpenClaw Plugin", () => {
     );
   });
 
+  it("should fall back when the OpenClaw runtime state API is unavailable", async () => {
+    const originalStateDir = process.env.OPENCLAW_STATE_DIR;
+    process.env.OPENCLAW_STATE_DIR = "/tmp/fallback-openclaw-state";
+    delete (mockApi.runtime as any).state;
+
+    try {
+      await pluginEntry.register(mockApi as any);
+
+      expect(toolDiscoveryMock.loadToolDefinitionsSync).toHaveBeenCalledWith({
+        config: mockApi.config,
+        pluginConfig: {
+          apiKey: "test-api-key",
+          baseUrl: "https://test.aitoearn.ai/api",
+        },
+        stateDir: "/tmp/fallback-openclaw-state",
+      });
+    } finally {
+      if (originalStateDir === undefined) {
+        delete process.env.OPENCLAW_STATE_DIR;
+      } else {
+        process.env.OPENCLAW_STATE_DIR = originalStateDir;
+      }
+    }
+  });
+
   it("should use default baseUrl when not provided", async () => {
     mockApi.pluginConfig.baseUrl = undefined;
 

@@ -1,6 +1,6 @@
 {
   "name": "@aitoearn/openclaw-plugin-cli",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "type": "module",
   "main": "./dist/installer/src/index.js",
   "types": "./dist/installer/src/index.d.ts",
